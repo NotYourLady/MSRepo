@@ -47,7 +47,10 @@ class Conv2dAuto(nn.Conv2d):
         super().__init__(*args, **kwargs)
         self.padding =  (self.kernel_size[0] // 2, self.kernel_size[1] // 2) # dynamic add padding based on the kernel_size
         
+
 conv3x3 = partial(Conv2dAuto, kernel_size=3, bias=False)   
+
+
 def activation_func(activation):
     return  nn.ModuleDict([
         ['relu', nn.ReLU(inplace=True)],
@@ -55,6 +58,8 @@ def activation_func(activation):
         ['selu', nn.SELU(inplace=True)],
         ['none', nn.Identity()]
     ])[activation]
+
+
 class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, activation='relu'):
         super().__init__()
@@ -98,6 +103,7 @@ class ResNetResidualBlock(ResidualBlock):
 def conv_bn(in_channels, out_channels, conv, *args, **kwargs):
     return nn.Sequential(conv(in_channels, out_channels, *args, **kwargs), nn.BatchNorm2d(out_channels))
 
+
 class ResNetBasicBlock(ResNetResidualBlock):
     """
     Basic ResNet block composed by two layers of 3x3conv/batchnorm/activation
@@ -111,6 +117,7 @@ class ResNetBasicBlock(ResNetResidualBlock):
             conv_bn(self.out_channels, self.expanded_channels, conv=self.conv, bias=False),
         )
 
+
 class Discriminator128(nn.Module):
     def __init__(self, drop=0.0):
         super().__init__()
@@ -123,16 +130,17 @@ class Discriminator128(nn.Module):
             nn.LeakyReLU(0.2, inplace=True),
             # out: 32 x 64 x 64
             ResNetBasicBlock(32, 32), 
+            # out: 32 x 64 x 64
 
             nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2, inplace=True),
-            # out: 128 x 16 x 16
+            # out: 64 x 16 x 16
 
             nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(128),
             nn.LeakyReLU(0.2, inplace=True),
-            # out: 512 x 8 x 8
+            # out: 128 x 8 x 8
 
             nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(256),
@@ -142,7 +150,7 @@ class Discriminator128(nn.Module):
             nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(512), 
             nn.LeakyReLU(0.2, inplace=True),
-            # out: 64 x 32 x 32
+            # out: 512 x 1 x 1
 
 
             nn.Conv2d(512, 1, kernel_size=4, stride=1, padding=0, bias=False),
@@ -158,10 +166,10 @@ class Discriminator128(nn.Module):
 
 
 class Generator128(nn.Module):
-    def __init__(self, latent_size, drop=0.0):
+    def __init__(self, latent_size, noiser_coef=0.003, drop=0.0):
         super().__init__()
         
-        self.noiser = Noiser(0.003)
+        self.noiser = Noiser(noiser_coef)
 
         self.core = nn.Sequential(
             # in: latent_size x 1 x 1
@@ -169,16 +177,18 @@ class Generator128(nn.Module):
             nn.ConvTranspose2d(latent_size, 512, kernel_size=4, stride=1, padding=0, bias=False),
             nn.BatchNorm2d(512),
             nn.ReLU(True),
-            # out: 1024 x 4 x 4
+            # 512 x 4 x 4
             ResNetBasicBlock(512, 1024),
-            #nn.Dropout2d(drop_gen),
+            #nn.Dropout2d(drop),
+            # 1024 x 4 x 4
 
             nn.ConvTranspose2d(1024, 512, kernel_size=4, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(512),
             nn.ReLU(True),
-            # out: 256 x 8 x 8
+            # 512 x 8 x 8
             ResNetBasicBlock(512, 256),
             #nn.Dropout2d(drop_gen)
+            # 256 x 8 x 8
 
             nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(128),
@@ -186,6 +196,7 @@ class Generator128(nn.Module):
             # out: 128 x 16 x 16
             ResNetBasicBlock(128, 128),
             #nn.Dropout2d(drop_gen),
+            # out: 128 x 16 x 16
 
             nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(64),
@@ -194,16 +205,18 @@ class Generator128(nn.Module):
             self.noiser,
             ResNetBasicBlock(64, 64),
             #nn.Dropout2d(drop_gen),
-
+            # out: 64 x 32 x 32
+            
             nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(32),
             nn.ReLU(True),
             # out: 32 x 64 x 64
             ResNetBasicBlock(32, 32),
+            # out: 32 x 64 x 64
             
             nn.ConvTranspose2d(32, 1, kernel_size=4, stride=2, padding=1, bias=False),
             nn.Tanh()
-            # out: 3 x 128 x 128
+            # out: 1 x 128 x 128
         )
     def forward(self, x):
         x = self.core(x)
