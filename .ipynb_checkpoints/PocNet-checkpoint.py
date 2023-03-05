@@ -159,7 +159,6 @@ class Discriminator128(nn.Module):
         x = self.core(x)
         return x
 
-
 class Generator128(nn.Module):
     def __init__(self, latent_size, device, noiser_coef=0.003, drop=0.0):
         super().__init__()
@@ -172,18 +171,17 @@ class Generator128(nn.Module):
             nn.ConvTranspose2d(latent_size, 512, kernel_size=4, stride=1, padding=0, bias=False),
             nn.BatchNorm2d(512),
             nn.ReLU(True),
-            # 512 x 4 x 4
+            # out: 512 x 4 x 4
             ResNetBasicBlock(512, 1024),
-            #nn.Dropout2d(drop),
-            # 1024 x 4 x 4
+            #nn.Dropout2d(drop_gen),
+            # out: 1024 x 4 x 4
 
             nn.ConvTranspose2d(1024, 512, kernel_size=4, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(512),
             nn.ReLU(True),
-            # 512 x 8 x 8
+            # out: 512 x 8 x 8
             ResNetBasicBlock(512, 256),
             #nn.Dropout2d(drop_gen)
-            # 256 x 8 x 8
 
             nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(128),
@@ -191,7 +189,6 @@ class Generator128(nn.Module):
             # out: 128 x 16 x 16
             ResNetBasicBlock(128, 128),
             #nn.Dropout2d(drop_gen),
-            # out: 128 x 16 x 16
 
             nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(64),
@@ -200,14 +197,12 @@ class Generator128(nn.Module):
             self.noiser,
             ResNetBasicBlock(64, 64),
             #nn.Dropout2d(drop_gen),
-            # out: 64 x 32 x 32
-            
+
             nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(32),
             nn.ReLU(True),
             # out: 32 x 64 x 64
             ResNetBasicBlock(32, 32),
-            # out: 32 x 64 x 64
             
             nn.ConvTranspose2d(32, 1, kernel_size=4, stride=2, padding=1, bias=False),
             nn.Tanh()
