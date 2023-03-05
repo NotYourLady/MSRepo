@@ -161,10 +161,10 @@ class Discriminator128(nn.Module):
 
 
 class Generator128(nn.Module):
-    def __init__(self, latent_size, noiser_coef=0.003, drop=0.0):
+    def __init__(self, latent_size, device, noiser_coef=0.003, drop=0.0):
         super().__init__()
         
-        self.noiser = Noiser(noiser_coef)
+        self.noiser = Noiser(device, noiser_coef)
 
         self.core = nn.Sequential(
             # in: latent_size x 1 x 1
