@@ -193,8 +193,10 @@ def show_batch(dl, nmax=64):
         
 
 def save_model(model, path_to_save_model, epoch):
-    path_to_save_model_ = path_to_save_model + f"/epoch_{epoch}_{int(time.time()//60)-27963162}" 
+    path_to_save_model_ = path_to_save_model + f"/epoch_{epoch}" 
     os.makedirs(path_to_save_model_, exist_ok=True)
     torch.save(model['discriminator'].state_dict(), path_to_save_model_ + "/discriminator")
     torch.save(model['generator'].state_dict(), path_to_save_model_ + "/generator")        
+
+      
 
