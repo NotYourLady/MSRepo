@@ -159,7 +159,61 @@ class Discriminator128(nn.Module):
         x = self.core(x)
         return x
 
+
 class Generator128(nn.Module):
+    def __init__(self, latent_size, device, noiser_coef=0.0, drop=0.0):
+        super().__init__()
+        
+        self.noiser = Noiser(device, noiser_coef)
+
+        self.core = nn.Sequential(
+            # in: latent_size x 1 x 1
+
+            nn.ConvTranspose2d(latent_size, 1024, kernel_size=4, stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(1024),
+            nn.ReLU(True),
+            # out: 1024 x 4 x 4
+            #ResNetBasicBlock(1024, 512),
+            #nn.Dropout2d(drop_gen),
+
+            nn.ConvTranspose2d(1024, 512, kernel_size=4, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(512),
+            nn.ReLU(True),
+            # out: 256 x 8 x 8
+            ResNetBasicBlock(512, 256),
+            #nn.Dropout2d(drop_gen)
+
+            nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(128),
+            nn.ReLU(True),
+            # out: 128 x 16 x 16
+            #ResNetBasicBlock(128, 128),
+            #nn.Dropout2d(drop_gen),
+
+            nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+            # out: 64 x 32 x 32
+            self.noiser,
+            ResNetBasicBlock(64, 64),
+            #nn.Dropout2d(drop_gen),
+
+            nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(32),
+            nn.ReLU(True),
+            # out: 32 x 64 x 64
+            ResNetBasicBlock(32, 32),
+            
+            nn.ConvTranspose2d(32, 1, kernel_size=4, stride=2, padding=1, bias=False),
+            nn.Tanh()
+            # out: 1 x 128 x 128
+        )
+    def forward(self, x):
+        x = self.core(x)
+        return x
+    
+    
+class Generator128_bad(nn.Module):
     def __init__(self, latent_size, device, noiser_coef=0.0, drop=0.0):
         super().__init__()
         
