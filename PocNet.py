@@ -33,7 +33,7 @@ class Noiser(nn.Module):
         self.noise_coef_ = noise_coef
 
     def forward(self, x):
-        x = x + torch.randn(*(x.shape), device=device)
+        x = x + torch.randn(*(x.shape))
         return x
 
 class Conv2dAuto(nn.Conv2d):
