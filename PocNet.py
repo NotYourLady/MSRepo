@@ -32,13 +32,7 @@ class Noiser(nn.Module):
         super().__init__()
         self.noise_coef_ = noise_coef
 
-    def add_noise_to_data(self, data):
-        noise =  self.noise_coef_ * torch.randn(*(data.shape), device=device)
-        data += noise
-        return(data)
-
     def forward(self, x):
-        #x = self.add_noise_to_data(x)
         x = x + torch.randn(*(x.shape), device=device)
         return x
 

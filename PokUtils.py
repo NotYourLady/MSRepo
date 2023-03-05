@@ -80,7 +80,7 @@ def smart_resize(img, size=256):
 
 hflipper = T.RandomHorizontalFlip(p=0.5)
 jitter = T.ColorJitter(brightness=0, hue=0.4)
-affiner = T.RandomAffine(degrees=(-60, 60), translate=(0.05, 0.01), scale=(0.8, 0.9), fill=1)
+affiner = T.RandomAffine(degrees=(-60, 60), translate=(0.00, 0.01), scale=(0.75, 0.85), fill=1)
 grayer = T.Grayscale(num_output_channels=1)
 
 
