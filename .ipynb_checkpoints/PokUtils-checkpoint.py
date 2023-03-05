@@ -20,6 +20,23 @@ import torch.nn.functional as F
 import random
 
 
+def get_noise(size, device, noise_coef=1.0e-2):
+    noise =  noise_coef * torch.randn(*size, device=device)
+    return(noise)    
+
+
+def get_noised_labels(size, type_, device, noise_coef=1.0e-2):
+    assert type_!=1 or type_!=0
+    noise = torch.abs(get_noise(size, noise_coef))
+    if type_==1:
+        labels = torch.ones(size, device=device)
+        labels -= noise
+        return(labels)
+    if type_==0:
+        labels = torch.zeros(size, device=device)
+        labels += noise
+        return(labels)
+
 def to_device(data, device):
     """Move tensor(s) to chosen device"""
     if isinstance(data, (list,tuple)):
