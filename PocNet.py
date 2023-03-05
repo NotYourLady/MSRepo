@@ -28,12 +28,13 @@ def get_noised_labels(size, type_, device, noise_coef=1.0e-2):
 
 
 class Noiser(nn.Module):
-    def __init__(self, noise_coef=1.0e-3):
+    def __init__(self, device, noise_coef=1.0e-3):
         super().__init__()
         self.noise_coef_ = noise_coef
-
+        self.device_ = device
+        
     def forward(self, x):
-        x = x + torch.randn(*(x.shape))
+        x = x + torch.randn(*(x.shape), device= self.device_)
         return x
 
 class Conv2dAuto(nn.Conv2d):
