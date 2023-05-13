@@ -20,22 +20,16 @@ class Point3d:
 
 class IntegralVol:
     def __init__(self, vol: np.array):
-        self.vol3d = True
-        self.integral_vol = None
         
-        if len(vol.shape) == 3:
-            self.integral_vol = np.zeros((vol.shape[0]+1, vol.shape[1]+1, vol.shape[2]+1))
-            for i in range(1, self.integral_vol.shape[-1]):
-                self.integral_vol[:, :, i] = self.integral_vol[:, :, i-1] + cv2.integral(vol[:,:,i-1])
-            #print("3d integral volume calculated")
-            
-        if len(vol.shape) == 2: #todo
-            self.vol3d = False
-            self.integral_vol = cv2.integral(vol)
-            #print("2d integral volume calculated")
-            
-        
-    def calculate_sum(self, point1, point2): #first coord of the volume, second coord of the volume
+        self.integral_vol = np.zeros((vol.shape[0]+1, vol.shape[1]+1, vol.shape[2]+1))
+        for i in range(1, self.integral_vol.shape[-1]):
+            self.integral_vol[:, :, i] = self.integral_vol[:, :, i-1] + cv2.integral(vol[:,:,i-1])
+        #print("3d integral volume calculated")   
+           
+    
+    #point1 : first coord of the volume [x, y, z]
+    #point2 : second coord of the volume [x, y, z]
+    def calculate_sum(self, point1, point2): 
         f = point1
         s = Point3d(point2.x+1, point2.y+1, point2.z+1)
 
@@ -60,7 +54,7 @@ def IntegralVolTest():
     print("preprocess time", end - start)
     
     point1 = Point3d(0, 0, 0)
-    point2 = Point3d(249, 249, 249)
+    point2 = Point3d(249, 249, 174)
 
 
     start = time.time()
@@ -77,7 +71,7 @@ def IntegralVolTest():
     print("integral vol time", end - start)
     
     
-    err = 0
+    errors = []
     iters = 100
     for i in range(iters):
         point1 = Point3d(np.random.randint(0, 100),
@@ -85,10 +79,10 @@ def IntegralVolTest():
                          np.random.randint(0, 100))
         point2 = Point3d(np.random.randint(125, 249),
                          np.random.randint(125, 249),
-                         np.random.randint(125, 249))
+                         np.random.randint(100, 150))
         nump = test_vol[point1.x:point2.x+1, point1.y:point2.y+1, point1.z:point2.z+1].sum()
         integr = test_vol_integr.calculate_sum(point1, point2)
         #print(abs(nump-integr))
-        err+=(abs(nump-integr))
-    print("calculation error", err/iters)
+        errors.append(abs(nump-integr))
+    print("calculation error:", max(errors))
     
