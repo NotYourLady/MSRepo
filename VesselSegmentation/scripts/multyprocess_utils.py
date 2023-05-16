@@ -36,7 +36,8 @@ class MultuProcCalc:
 
         for p in procs:
             p.join()
-
+        
+        
         return(bin_vol)
     
     def generate_process_data(self):

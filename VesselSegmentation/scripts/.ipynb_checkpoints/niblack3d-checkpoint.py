@@ -3,7 +3,10 @@ import integral_volume as iv
 from algorithm_class import Algorithm
 
 class Niblack3d(Algorithm):
-    def __init__(self, vol=None, window_size=None, coef_k=None, coef_a=None):
+    def __init__(self, vol=None, window_size=None,
+                 coef_k=None, coef_a=None,
+                 thresh=None):
+        
         super().__init__(vol)
         assert(window_size is not None)
         assert(coef_k is not None)
@@ -14,7 +17,7 @@ class Niblack3d(Algorithm):
         self.coef_a = coef_a
         self.integr = iv.IntegralVol(vol)
         self.integr_sq = iv.IntegralVol(vol**2)
-
+        self.thresh = thresh
     
     def binarize(self, edges=None, return_sigma=False):
         if edges is None:
@@ -48,11 +51,18 @@ class Niblack3d(Algorithm):
                     #    s = iv.Point3d(i+w_s[0], j+w_s[1], k+w_s[2]).edit_to_vol(bin_vol)
                     #    T, sigma = self.calc_T(integr, integr_sq, w_s, f, s)
 
-
+                    
                     if self.vol[i, j, k]>=T:
-                        bin_vol[i - edges[0][0],
-                                j - edges[1][0],
-                                k - edges[2][0]] = 1  
+                        if (self.thresh is not None):
+                            if (self.vol[i, j, k] > self.thresh[0] and
+                                self.vol[i, j, k] < self.thresh[1]):
+                                bin_vol[i - edges[0][0],
+                                        j - edges[1][0],
+                                        k - edges[2][0]] = 1
+                        else:    
+                            bin_vol[i - edges[0][0],
+                                    j - edges[1][0],
+                                    k - edges[2][0]] = 1  
         if not return_sigma:
             return(bin_vol)
         else:
