@@ -86,65 +86,37 @@ class U_Net(nn.Module):
         self.active = torch.nn.Sigmoid()
 
     def forward(self, x):
-        # print("unet")
-        # print(x.shape)
-        # print(padded.shape)
-
         e1 = self.Conv1(x)
-        # print("conv1:")
-        # print(e1.shape)
-
+        
         e2 = self.Maxpool1(e1)
         e2 = self.Conv2(e2)
-        # print("conv2:")
-        # print(e2.shape)
-
+        
         e3 = self.Maxpool2(e2)
         e3 = self.Conv3(e3)
-        # print("conv3:")
-        # print(e3.shape)
-
+        
         e4 = self.Maxpool3(e3)
         e4 = self.Conv4(e4)
-        # print("conv4:")
-        # print(e4.shape)
-
+        
         e5 = self.Maxpool4(e4)
         e5 = self.Conv5(e5)
-        # print("conv5:")
-        # print(e5.shape)
-
+        
         d5 = self.Up5(e5)
-        # print("d5:")
-        # print(d5.shape)
-        # print("e4:")
-        # print(e4.shape)
         d5 = torch.cat((e4, d5), dim=1)
         d5 = self.Up_conv5(d5)
-        # print("upconv5:")
-        # print(d5.size)
-
+        
         d4 = self.Up4(d5)
-        # print("d4:")
-        # print(d4.shape)
         d4 = torch.cat((e3, d4), dim=1)
         d4 = self.Up_conv4(d4)
-        # print("upconv4:")
-        # print(d4.shape)
+        
         d3 = self.Up3(d4)
         d3 = torch.cat((e2, d3), dim=1)
         d3 = self.Up_conv3(d3)
-        # print("upconv3:")
-        # print(d3.shape)
+        
         d2 = self.Up2(d3)
         d2 = torch.cat((e1, d2), dim=1)
         d2 = self.Up_conv2(d2)
-        # print("upconv2:")
-        # print(d2.shape)
+        
         out = self.Conv(d2)
-        # print("out:")
-        # print(out.shape)
-        # d1 = self.active(out)
         out = self.active(out)
         return [out]
 
