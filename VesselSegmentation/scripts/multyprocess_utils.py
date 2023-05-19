@@ -1,7 +1,6 @@
 import numpy as np
 from multiprocessing import Process, Queue
 from time import time, sleep
-from niblack3d import Niblack3d
 
 
 class MultuProcCalc:

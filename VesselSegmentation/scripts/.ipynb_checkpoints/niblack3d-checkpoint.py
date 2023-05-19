@@ -1,6 +1,6 @@
 import numpy as np
-import integral_volume as iv
-from algorithm_class import Algorithm
+import scripts.integral_volume as iv
+from scripts.algorithm_class import Algorithm
 
 class Niblack3d(Algorithm):
     def __init__(self, vol=None, window_size=None,
