@@ -1,124 +1,139 @@
 import os
-import time
 import torch
 import numpy as np
-import pandas as pd
 import nibabel as nib
+import pandas as pd
+
 from torch.utils.data import Dataset
-
-import rog.dataloader.helpers as helpers
-
 import torch.nn as nn
 import torch.nn.functional as F
 
+from scripts.load_and_save import load_sample_data
 
-class Medical_data(Dataset):
-    def __init__(self, train, csv_file, root_dir, patch_size, im_path=None,
-                 val=False, pgd=False):
-        super(Medical_data, self).__init__()
-        self.csv_file = csv_file
-        self.filenames = pd.read_csv(csv_file)
-        self.root_dir = root_dir
-        self.train = train
-        self.val = val
-        self.patch_size = np.asarray(patch_size)
-        self.fg = 0
-        self.pgd = pgd
-        self.images_path = im_path
-        self.folder = ''
+
+class HVB_Dataset(Dataset):
+    def __init__(self, settings):
+        super(Dataset, self).__init__()
+        assert settings["mode"] in ('train', 'eval')
+        self.mode = settings["mode"]
+        self.data_dir = settings["data_dir"]
+        self.patch_data = pd.read_csv(settings["data_dir"] + '/patch_data.csv')
+        self.patch_shape = settings['patch_shape']
+        self.sample_data = pd.read_csv(settings["data_dir"] + '/sample_data.csv')
+        self.RAM_samples = settings["RAM_samples"]
+        
 
     def __len__(self):
-        if self.train or self.pgd:
-            return len(self.filenames)
+        if self.mode=='train':
+            return len(self.patch_data)
         else:
-            return len(self.voxel)
+            return len(self.sample_data)
 
     def __getitem__(self, idx):
-        if self.train or self.pgd:
-            patient = self.filenames.iloc[int(idx)]
-            image, label, affine = helpers.load_image(
-                patient, self.root_dir, self.train)
-            im_shape, multimodal = helpers.image_shape(image)
+        if self.mode=='train':
+            patch_info = self.patch_data.iloc[idx]
+            if (self.RAM_samples):
+                head_vol = self.RAM_samples[patch_info.sample_name]["head"]
+                vessels_vol = self.RAM_samples[patch_info.sample_name]["vessels"]
+                brain_vol = self.RAM_samples[patch_info.sample_name]["brain"]
+            else: 
+                path_to_sample = self.sample_data[
+                    self.sample_data.sample_name == patch_info.sample_name] \
+                    .iloc[0] \
+                    .sample_path
+                sample_data = load_sample_data(path_to_sample, np.float32)
+                head_vol = sample_data["head"]
+                vessels_vol = sample_data["vessels"]
+                brain_vol = sample_data["brain"]
+            
+            head_patch = self.get_patch(patch_info, head_vol)
+            vessels_patch = self.get_patch(patch_info, vessels_vol)
+            brain_patch = self.get_patch(patch_info, brain_vol)
+            return {'head_patch': head_patch, 'vessels_patch': vessels_patch, 'brain_patch': brain_patch}    
+            
+        if self.mode=='eval':
+            pass
 
-            # If the image is smaller than the patch_size in any dimension, we
-            # have to pad it to extract a patch
-            if any(im_shape <= self.patch_size):
-                dif = (self.patch_size - im_shape) // 2 + 3
-                pad = np.maximum(dif, [0, 0, 0])
-                pad_lb = tuple(zip(pad, pad))
-                label = np.pad(label, pad_lb, 'reflect')
+    def get_patch(self, patch_info, vol):  
+        (x, y, z) = (int(patch_info.pixel_x),
+                     int(patch_info.pixel_y),
+                     int(patch_info.pixel_z))
+        ps = self.patch_shape
+        patch = torch.tensor(vol[x:x+ps[0],
+                                 y:y+ps[1],
+                                 z:z+ps[2]]).unsqueeze(0)
+        return(patch)
 
-                if multimodal:
-                    pad_im = [0] + pad.tolist()
-                else:
-                    pad_im = pad
-                pad_im = tuple(zip(pad_im, pad_im))
-                image = np.pad(image, pad_im, 'reflect')
 
-            if self.val:
-                voxel = np.asarray(label.shape) // 2
-            else:
-                fg = (idx + self.fg) % 2 == 0
-                voxel = helpers.train_voxels(image, self.patch_size, label, fg)
+def generate_patches_pixels(vol_shape, patch_shape, patches_number):
+    np.random.seed(1608)
+    patch_pixel_x = []
+    patch_pixel_y = []
+    patch_pixel_z = []
+    for i in range(patches_number):
+        x = np.random.randint(low=0, high=vol_shape[0]-patch_shape[0])
+        y = np.random.randint(low=0, high=vol_shape[1]-patch_shape[1])
+        z = np.random.randint(low=0, high=vol_shape[2]-patch_shape[2])
+        patch_pixel_x.append(x)
+        patch_pixel_y.append(y)
+        patch_pixel_z.append(z)
+    return(patch_pixel_x, patch_pixel_y, patch_pixel_z)
 
-            if self.train:
-                # Patch extraction
-                patches = helpers.extract_patch(image, voxel, self.patch_size)
-                label = helpers.extract_patch(label, voxel, self.patch_size)
-                patches = patches.astype(float)
-                info = 0
-            elif self.pgd:
-                patches = image
-                if len(patches.shape) == 3:
-                    patches = np.expand_dims(patches, 0)
-                label = np.expand_dims(label, 0)
-                info = [patient[0][11:], affine]
-        else:
-            patches = helpers.extract_patch(
-                self.image, self.voxel[idx], self.patch_size)
-            label = torch.Tensor(self.voxel[idx])
-            # patches = helpers.test_data(patches)
-            patches = torch.from_numpy(patches)
-            info = 0
 
-        return {'data': patches, 'target': label, 'info': info}
+def preprocess_dataset(settings, dtype=np.float32):
+    patch_data_df = {"pixel_x" : [],
+                     "pixel_y" : [],
+                     "pixel_z" : [],
+                     "sample_name" : []}
+    patch_data_df = pd.DataFrame(patch_data_df)        
+    patch_data_df = patch_data_df.astype({"pixel_x": int, "pixel_y": int, "pixel_z": int})
+    
+    sample_paths_list = []
+    sample_names_list = []
+    
+    if settings["RAM_samples"]:
+        settings["RAM_samples"] = {}
+    
+    for dirname, dirnames, filenames in os.walk(settings['data_dir']):
+        for subdirname in dirnames:
+            sample_paths_list.append(os.path.join(dirname, subdirname))
+            sample_names_list.append(subdirname)
+            sample = load_sample_data(sample_paths_list[-1], dtype)
+            check_shapes_of_data(sample)
+            settings["RAM_samples"].update({sample_names_list[-1] : sample})
+            
+            sample_patch_pixels = generate_patches_pixels(sample['head'].shape,
+                                                          settings['patch_shape'],
+                                                          settings['number_of_patches'])
+            sample_names = settings['number_of_patches'] * [sample_names_list[-1],]
+            sample_df = pd.DataFrame({"pixel_x" : sample_patch_pixels[0],
+                                      "pixel_y" : sample_patch_pixels[1],
+                                      "pixel_z" : sample_patch_pixels[2],
+                                      "sample_name" : sample_names})
+            patch_data_df = pd.concat([patch_data_df, sample_df], ignore_index=True)
+    
+    #patch_data_df = patch_data_df.astype({"pixel_x": int, "pixel_y": int, "pixel_z": int})
+    patch_data_df.to_csv(settings['data_dir'] + "/patch_data.csv", index=False)    
+    sample_data_df = pd.DataFrame({"sample_name" : sample_names_list,
+                                    "sample_path" : sample_paths_list})
+    sample_data_df.to_csv(settings['data_dir'] + "/sample_data.csv", index=False)
+    return(patch_data_df, sample_data_df)
 
-    def change_epoch(self):
-        self.fg = 1 - self.fg
-
-    def update(self, im_idx):
-        # This is only for testing
-        patient = self.filenames.iloc[im_idx]
-        name = patient[0][11:]  # ./imagesTr/XXXX.nii.gz (or imagesTs)
-        print('Loading data of patient {} ---> {}'.format(
-            name, time.strftime("%H:%M:%S")))
-
-        image, _, affine = helpers.load_image(
-            patient, self.root_dir, self.train)
-        self.image, pad = helpers.verify_size(image, self.patch_size)
-        im_shape, multimodal = helpers.image_shape(self.image)
-        if multimodal and pad is not None:
-            pad = pad[1:]
-
-        self.voxel = helpers.test_voxels(self.patch_size, im_shape)
-        return im_shape, name, affine, pad
-
-    def update_pgd(self, im_idx):
-        # This is only for testing the adversarial robustness
-        patient = self.filenames.iloc[im_idx]
-        name = patient[0][11:]  # ./imagesTr/XXXX.nii.gz (or imagesTs)
-
-        image, label, affine = helpers.load_image(
-            patient, self.root_dir, self.train)
-        image = image.astype(np.float32)
-        image, _ = helpers.verify_size(image, self.patch_size)
-        label, _ = helpers.verify_size(label, self.patch_size)
-        assert image.shape[-3:] == label.shape[-3:]
-        im_shape, _ = helpers.image_shape(image)
-
-        # voxel = np.asarray(label.shape) // 2
-        voxel = helpers.val_voxels(im_shape, self.patch_size, label)
-        image = helpers.extract_patch(image, voxel, self.patch_size)
-        image = torch.from_numpy(image).unsqueeze(0)  # Batch dimension
-        label = helpers.extract_patch(label, voxel, self.patch_size)
-        return image, torch.from_numpy(label), name, affine
+def check_shapes_of_data(sample):
+    if (isinstance(sample, str)):
+        sample_data = load_sample_data(path_to_sample)
+        head_vol_shape = sample_data["head"][0].shape
+        vessels_vol_shape = sample_data["vessels"][0].shape
+        brain_vol_shape = sample_data["brain"][0].shape
+        assert head_vol_shape == vessels_vol_shape, "Error: head_vol.shape != vessels_vol.shape"
+        assert head_vol_shape == brain_vol_shape, "Error: head_vol.shape != brain_vol.shape" 
+    elif (isinstance(sample, dict)):
+        head_vol_shape = sample["head"][0].shape
+        vessels_vol_shape = sample["vessels"][0].shape
+        brain_vol_shape = sample["brain"][0].shape
+        assert head_vol_shape == vessels_vol_shape, "Error: head_vol.shape != vessels_vol.shape"
+        assert head_vol_shape == brain_vol_shape, "Error: head_vol.shape != brain_vol.shape" 
+    else:
+        raise Exception("Can't check sample shapes")
+    
+    

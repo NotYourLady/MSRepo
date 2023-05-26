@@ -1,136 +1,139 @@
-import pandas as pd
+import os
 import torch
+import numpy as np
+import nibabel as nib
+import pandas as pd
+
 from torch.utils.data import Dataset
+import torch.nn as nn
+import torch.nn.functional as F
+
+from scripts.load_and_save import load_sample_data
 
 
-class RottenTomatoesDataset(Dataset):
-
-    def __init__(self, dataframe, tokenizer, max_seq_len):
-        self.data = dataframe
-        self.text = dataframe['movie_description']
-        self.targets = None
-        if 'target' in dataframe:
-            self.targets = dataframe['target']
-        self.tokenizer = tokenizer
-        self.max_seq_len = max_seq_len
-
-    def __getitem__(self, index):
-        text = str(self.text[index])
-        text = ' '.join(text.split())
-
-        inputs = self.tokenizer.encode_plus(
-            text,
-            None,
-            add_special_tokens=True,
-            max_length=self.max_seq_len,
-            padding='max_length',
-            return_token_type_ids=True,
-            truncation=True
-        )
-         
-        ids = inputs['input_ids']
-        mask = inputs['attention_mask']
-
-        if self.targets is not None:
-            return {
-                'ids': torch.tensor(ids, dtype=torch.long),
-                'mask': torch.tensor(mask, dtype=torch.long),
-                'targets': torch.tensor(self.targets[index], dtype=torch.long)
-            }
-        else:
-            return {
-                'ids': torch.tensor(ids, dtype=torch.long),
-                'mask': torch.tensor(mask, dtype=torch.long),
-            }
-
-    def __len__(self) -> int:
-        return len(self.text)
-
-    
-class SomeDataset(Dataset):
-
-    def __init__(self, dataframe, tokenizer, max_seq_len):
-        self.data = dataframe
-        self.text = dataframe['movie_description']
-        self.targets = None
-        if 'target' in dataframe:
-            self.targets = dataframe['target']
-        self.tokenizer = tokenizer
-        self.max_seq_len = max_seq_len
-
-    def __getitem__(self, index):
-        text = str(self.text[index])
-        text = ' '.join(text.split())
-
-        inputs = self.tokenizer.encode_plus(
-            text,
-            None,
-            add_special_tokens=True,
-            max_length=self.max_seq_len,
-            padding='max_length',
-            return_token_type_ids=True,
-            truncation=True
-        )
+class HVB_Dataset(Dataset):
+    def __init__(self, settings):
+        super(Dataset, self).__init__()
+        assert settings["mode"] in ('train', 'eval')
+        self.mode = settings["mode"]
+        self.data_dir = settings["data_dir"]
+        self.patch_data = pd.read_csv(settings["data_dir"] + '/patch_data.csv')
+        self.patch_shape = settings['patch_shape']
+        self.sample_data = pd.read_csv(settings["data_dir"] + '/sample_data.csv')
+        self.RAM_samples = settings["RAM_samples"]
         
-        ids = inputs['input_ids']
-        mask = inputs['attention_mask']
 
-        if self.targets is not None:
-            return {
-                'text': torch.tensor(ids, dtype=torch.long),
-                'label': torch.tensor(self.targets[index], dtype=torch.long)
-            }
+    def __len__(self):
+        if self.mode=='train':
+            return len(self.patch_data)
         else:
-            return {
-                'label': torch.tensor(ids, dtype=torch.long),
-            }
+            return len(self.sample_data)
 
-    def __len__(self) -> int:
-        return len(self.text)
+    def __getitem__(self, idx):
+        if self.mode=='train':
+            patch_info = self.patch_data.iloc[idx]
+            if (self.RAM_samples):
+                head_vol = self.RAM_samples[patch_info.sample_name]["head"]
+                vessels_vol = self.RAM_samples[patch_info.sample_name]["vessels"]
+                brain_vol = self.RAM_samples[patch_info.sample_name]["brain"]
+            else: 
+                path_to_sample = self.sample_data[
+                    self.sample_data.sample_name == patch_info.sample_name] \
+                    .iloc[0] \
+                    .sample_path
+                sample_data = load_sample_data(path_to_sample, np.float32)
+                head_vol = sample_data["head"]
+                vessels_vol = sample_data["vessels"]
+                brain_vol = sample_data["brain"]
+            
+            head_patch = self.get_patch(patch_info, head_vol)
+            vessels_patch = self.get_patch(patch_info, vessels_vol)
+            brain_patch = self.get_patch(patch_info, brain_vol)
+            return {'head_patch': head_patch, 'vessels_patch': vessels_patch, 'brain_patch': brain_patch}    
+            
+        if self.mode=='eval':
+            pass
+
+    def get_patch(self, patch_info, vol):  
+        (x, y, z) = (int(patch_info.pixel_x),
+                     int(patch_info.pixel_y),
+                     int(patch_info.pixel_z))
+        ps = self.patch_shape
+        patch = torch.tensor(vol[x:x+ps[0],
+                                 y:y+ps[1],
+                                 z:z+ps[2]]).unsqueeze(0)
+        return(patch)
+
+
+def generate_patches_pixels(vol_shape, patch_shape, patches_number):
+    np.random.seed(1608)
+    patch_pixel_x = []
+    patch_pixel_y = []
+    patch_pixel_z = []
+    for i in range(patches_number):
+        x = np.random.randint(low=0, high=vol_shape[0]-patch_shape[0])
+        y = np.random.randint(low=0, high=vol_shape[1]-patch_shape[1])
+        z = np.random.randint(low=0, high=vol_shape[2]-patch_shape[2])
+        patch_pixel_x.append(x)
+        patch_pixel_y.append(y)
+        patch_pixel_z.append(z)
+    return(patch_pixel_x, patch_pixel_y, patch_pixel_z)
+
+
+def preprocess_dataset(settings, dtype=np.float32):
+    patch_data_df = {"pixel_x" : [],
+                     "pixel_y" : [],
+                     "pixel_z" : [],
+                     "sample_name" : []}
+    patch_data_df = pd.DataFrame(patch_data_df)        
+    patch_data_df = patch_data_df.astype({"pixel_x": int, "pixel_y": int, "pixel_z": int})
+    
+    sample_paths_list = []
+    sample_names_list = []
+    
+    if settings["RAM_samples"]:
+        settings["RAM_samples"] = {}
+    
+    for dirname, dirnames, filenames in os.walk(settings['data_dir']):
+        for subdirname in dirnames:
+            sample_paths_list.append(os.path.join(dirname, subdirname))
+            sample_names_list.append(subdirname)
+            sample = load_sample_data(sample_paths_list[-1], dtype)
+            check_shapes_of_data(sample)
+            settings["RAM_samples"].update({sample_names_list[-1] : sample})
+            
+            sample_patch_pixels = generate_patches_pixels(sample['head'].shape,
+                                                          settings['patch_shape'],
+                                                          settings['number_of_patches'])
+            sample_names = settings['number_of_patches'] * [sample_names_list[-1],]
+            sample_df = pd.DataFrame({"pixel_x" : sample_patch_pixels[0],
+                                      "pixel_y" : sample_patch_pixels[1],
+                                      "pixel_z" : sample_patch_pixels[2],
+                                      "sample_name" : sample_names})
+            patch_data_df = pd.concat([patch_data_df, sample_df], ignore_index=True)
+    
+    #patch_data_df = patch_data_df.astype({"pixel_x": int, "pixel_y": int, "pixel_z": int})
+    patch_data_df.to_csv(settings['data_dir'] + "/patch_data.csv", index=False)    
+    sample_data_df = pd.DataFrame({"sample_name" : sample_names_list,
+                                    "sample_path" : sample_paths_list})
+    sample_data_df.to_csv(settings['data_dir'] + "/sample_data.csv", index=False)
+    return(patch_data_df, sample_data_df)
+
+def check_shapes_of_data(sample):
+    if (isinstance(sample, str)):
+        sample_data = load_sample_data(path_to_sample)
+        head_vol_shape = sample_data["head"][0].shape
+        vessels_vol_shape = sample_data["vessels"][0].shape
+        brain_vol_shape = sample_data["brain"][0].shape
+        assert head_vol_shape == vessels_vol_shape, "Error: head_vol.shape != vessels_vol.shape"
+        assert head_vol_shape == brain_vol_shape, "Error: head_vol.shape != brain_vol.shape" 
+    elif (isinstance(sample, dict)):
+        head_vol_shape = sample["head"][0].shape
+        vessels_vol_shape = sample["vessels"][0].shape
+        brain_vol_shape = sample["brain"][0].shape
+        assert head_vol_shape == vessels_vol_shape, "Error: head_vol.shape != vessels_vol.shape"
+        assert head_vol_shape == brain_vol_shape, "Error: head_vol.shape != brain_vol.shape" 
+    else:
+        raise Exception("Can't check sample shapes")
     
     
-def get_data_for_w2v(dataframe, max_seq_len, tokenizer):
-    texts = dataframe['movie_description']
-    return [tokenizer.encode_plus(
-        str(text),
-        None,
-        add_special_tokens=True,
-        max_length=max_seq_len,
-        padding='max_length',
-        return_token_type_ids=True,
-        truncation=True
-    )['input_ids'] for text in texts]
-    
-
-def train_test_split(data: pd.DataFrame, train_frac=0.85):
-    """
-    Splits the data into train and test parts, stratifying by labels.
-    Should it shuffle the data before split?
-    :param data: dataset to split
-    :param train_frac: proportion of train examples
-    :return: texts and labels for each split
-    """
-    # n_films_genres = 6
-    train_data, test_data = None, None
-    train_texts = []
-    test_texts = []
-    train_labels = []
-    test_labels = []
-
-    for label in data['target'].unique():
-        texts = data[data.target == label].movie_description
-        n_train = int(len(texts) * train_frac)
-        n_test = len(texts) - n_train
-        train_texts.extend(texts[:n_train])
-        test_texts.extend(texts[n_train:])
-        train_labels += [label] * n_train
-        test_labels += [label] * n_test
-        train_data = {
-            'movie_description': train_texts,
-            'target': train_labels
-        }
-        test_data = {
-            'movie_description': test_texts,
-            'target': test_labels
-        }
-    return pd.DataFrame(train_data), pd.DataFrame(test_data)
