@@ -1,12 +1,12 @@
 from typing import Dict
 
+import os
 import torch
 from numpy import asarray
 from torch.nn import CrossEntropyLoss
 from torch.optim import Adam, RMSprop, Adamax, NAdam
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 
-from model import BertForClassification
 
 
 class Trainer:
@@ -14,15 +14,15 @@ class Trainer:
         self.config = config
         self.n_epochs = config['n_epochs']
         self.optimizer = None
-        self.opt_fn = lambda model: Adam(model.parameters(), lr=config['lr'], betas=(0.9, 0.9), eps=1e-08, weight_decay=0.0)
+        self.opt_fn = lambda model: Adam(model.parameters(), lr=config['lr'])
         self.model = None
         self.history = None
-        self.loss_fn = CrossEntropyLoss()
+        self.loss_fn = config["loss"]
         self.device = config['device']
         self.verbose = config.get('verbose', True)
         
         
-    def fit(self, model, train_dataloader, val_dataloader):
+    def fit(self, model, train_dataloader=None, val_dataloader=None):
         self.model = model.to(self.device)
         self.optimizer = self.opt_fn(model)
         self.history = {
@@ -33,9 +33,10 @@ class Trainer:
         for epoch in range(self.n_epochs):
             print(f"Epoch {epoch + 1}/{self.n_epochs}")
             train_info = self.train_epoch(train_dataloader)
-            val_info = self.val_epoch(val_dataloader)
-            self.history['train_loss'].extend(train_info['loss'])
-            self.history['val_loss'].extend([val_info['loss']])
+            print(train_info)
+            self.history['train_loss'].append(train_info['loss'])
+            #val_info = self.val_epoch(val_dataloader)
+            #self.history['val_loss'].extend([val_info['loss']])
         return self.model.eval()
 
     
@@ -45,74 +46,35 @@ class Trainer:
         if self.verbose:
             train_dataloader = tqdm(train_dataloader)
         for batch in train_dataloader:
-            #ids = batch['ids'].to(self.device, dtype=torch.long)
-            #mask = batch['mask'].to(self.device, dtype=torch.long)
-            #targets = batch['targets'].to(self.device, dtype=torch.long)
-
-            outputs = self.model.forward(ids, mask)
+            head_batch = batch['head_patch'].to(self.device)
+            vessels_batch = batch['vessels_patch'].to(self.device)
             
-            loss = self.loss_fn(outputs, targets)
+            outputs = self.model.forward(head_batch)
+            output = outputs[0]    
+            
+            loss = self.loss_fn(output, vessels_batch)
 
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
             loss_val = loss.item()
-            if self.verbose:
-                train_dataloader.set_description(f"Loss={loss_val:.3}")
             losses.append(loss_val)
-        return {'loss': losses}
+        return {'loss': sum(losses)/len(losses)}
 
     
     def val_epoch(self, val_dataloader):
-        self.model.eval()
-        all_logits = []
-        all_labels = []
-        if self.verbose:
-            val_dataloader = tqdm(val_dataloader)
-        with torch.no_grad():
-            for batch in val_dataloader:
-                #ids = batch['ids'].to(self.device, dtype=torch.long)
-                #mask = batch['mask'].to(self.device, dtype=torch.long)
-                #targets = batch['targets'].to(self.device, dtype=torch.long)
-                outputs = self.model.forward(ids, mask)
-                #outputs = self.model.forward(ids).logits
-                all_logits.append(outputs)
-                all_labels.append(targets)
-        all_labels = torch.cat(all_labels).to(self.device)
-        all_logits = torch.cat(all_logits).to(self.device)
-         
-        loss = self.loss_fn(all_logits, all_labels).item()
-        acc = (all_logits.argmax(1) == all_labels).float().mean().item()
-        print(acc)
-        if self.verbose:
-            val_dataloader.set_description(f"Loss={loss:.3}; Acc:{acc:.3}")
-        return {
-            'acc': acc,
-            'loss': loss
-        }
+        pass
 
     
     def predict(self, test_dataloader):
-        if not self.model:
-            raise RuntimeError("You should train the model first")
-        self.model.eval()
-        predictions = []
-        with torch.no_grad():
-            for batch in test_dataloader:
-                #ids = batch['ids'].to(self.device, dtype=torch.long)
-                #mask = batch['mask'].to(self.device, dtype=torch.long)
-                #outputs = self.model(ids, mask)
-                predictions.extend(outputs.argmax(1).tolist())
-        return asarray(predictions)
+        pass
 
     
     def save(self, path: str):
         if self.model is None:
             raise RuntimeError("You should train the model first")
         checkpoint = {
-            "config": self.model.config,
             "trainer_config": self.config,
-            "model_name": self.model.model_name,
             "model_state_dict": self.model.state_dict()
         }
         torch.save(checkpoint, path)
@@ -120,28 +82,8 @@ class Trainer:
     
     @classmethod
     def load(cls, path: str):
-        ckpt = torch.load(path)
-        keys = ["config", "trainer_config", "model_state_dict"]
-        for key in keys:
-            if key not in ckpt:
-                raise RuntimeError(f"Missing key {key} in checkpoint")
-        new_model = DistilBertForClassification(
-            ckpt['model_name'],
-            ckpt["config"]
-        )
-        new_model.load_state_dict(ckpt["model_state_dict"])
-        new_trainer = cls(ckpt["trainer_config"])
-        new_trainer.model = new_model
-        new_trainer.model.to(new_trainer.device)
-        return 
+        pass
 
 
 def test_model(model, dataloader, device='cpu'):
-    for batch in dataloader:
-        ids = batch['ids'].to(device)
-        mask = batch['mask'].to(device)
-        targets = batch['targets'].to(device)#
-
-        outputs = model.forward(ids, mask)
-        print("outputs: \n", outputs.shape, "\n", outputs)
-        break    
+    pass

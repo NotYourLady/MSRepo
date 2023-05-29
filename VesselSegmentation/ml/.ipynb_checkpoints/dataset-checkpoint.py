@@ -26,7 +26,7 @@ class HVB_Dataset(Dataset):
     def __len__(self):
         if self.mode=='train':
             return len(self.patch_data)
-        else:
+        if self.mode=='eval':
             return len(self.sample_data)
 
     def __getitem__(self, idx):
@@ -52,7 +52,8 @@ class HVB_Dataset(Dataset):
             return {'head_patch': head_patch, 'vessels_patch': vessels_patch, 'brain_patch': brain_patch}    
             
         if self.mode=='eval':
-            pass
+            pass  
+            
 
     def get_patch(self, patch_info, vol):  
         (x, y, z) = (int(patch_info.pixel_x),
@@ -63,7 +64,11 @@ class HVB_Dataset(Dataset):
                                  y:y+ps[1],
                                  z:z+ps[2]]).unsqueeze(0)
         return(patch)
-
+    
+    def np2torch(self, np_arr):
+        return(torch.tensor(np_arr).unsqueeze(0).unsqueeze(0))
+        
+    
 
 def generate_patches_pixels(vol_shape, patch_shape, patches_number):
     np.random.seed(1608)
