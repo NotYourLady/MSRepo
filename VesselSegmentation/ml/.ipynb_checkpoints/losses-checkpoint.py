@@ -87,20 +87,18 @@ class Dice_metric(nn.Module):
         return loss[:, 1:].mean(dim=1)
     
     
-def dice_loss(y_real, y_pred, discrepancy=1.0e-6):
+def dice_loss(y_real, y_pred, discrepancy=1):
     num = 2*torch.sum(y_real*y_pred)
     den = torch.sum(y_real + y_pred) + discrepancy
-    res = 1 - (num/den)# /(256*256) #кажется это деление бесполезное, протещу #PS это деление просто портит жизнь, но не сильно:)
+    res = 1 - (num/den)
     return res 
+
 
 def focal_loss(y_real, y_pred, eps = 1e-8, gamma = 0.5):
     first_term = torch.pow(1 - y_pred, gamma) * y_real * torch.log(y_pred + eps)
     #first_term = 0.5 * y_real * torch.log(y_pred + eps)
     second_term = (1 - y_real) * torch.log(1 - y_pred + eps)
     return( -torch.mean(first_term + second_term) )
-
-
-
 
 
 class ComboLoss:
@@ -113,4 +111,44 @@ class ComboLoss:
         dice = dice_loss(y_real, y_pred, discrepancy=1.0e-6)
         #print("focal/dice", focal/dice)
         return self.lamb * focal + (1 - self.lamb) * dice
+
+#TODO: протестировать усреднение bce до и после возведения в степень.
+class ExponentialLogarithmicLoss:
+    def __init__(self, gamma_dice = None, gamma_bce = None,
+                       lamb=0.5, bce_weight=1):
+            self.gamma_dice = gamma_dice
+            self.gamma_bce =  gamma_bce
+            self.lamb = lamb
+            self.bce_weight = bce_weight
+    
+    def set_bce_weight(self, freq):
+        w1 = (1 / freq) ** 0.5
+        w2 = (1 / (1 - freq) ) ** 0.5
+        self.bce_weight = w1 / w2
+    
+    def __call__(self, y_real, y_pred):
+        w_exp_bce = self.weighted_bce_loss(y_real, y_pred)
+        dice = torch.pow(self.log_dice_loss(y_real, y_pred), self.gamma_dice)
+        print(w_exp_bce, dice)
+        return self.lamb * w_exp_bce + (1 - self.lamb) * dice
+    
+    def log_dice_loss(self, y_real, y_pred, discrepancy=1, eps = 1e-8):
+        num = 2*torch.sum(y_real * y_pred)
+        den = torch.sum(y_real + y_pred) + discrepancy
+        res = 1 - (num/den)
+        print("res:", res)
+        return -torch.log(res + eps)
+    
+    def weighted_bce_loss(self, y_real, y_pred, eps = 1e-8):
+        first_term = torch.pow(-y_real * torch.log(y_pred + eps), self.gamma_bce)
+        second_term = torch.pow(-(1-y_real) * torch.log(1 - y_pred + eps), self.gamma_bce)
+        return(torch.mean(self.bce_weight * first_term + (1-self.bce_weight)*second_term) )
+        #var2:
+        #first_term = y_real * torch.log(y_pred + eps)
+        #second_term = (1 - y_real) * torch.log(1 - y_pred + eps)
+        #return( -torch.mean(first_term + second_term) )
+            
+
+
+    
     
