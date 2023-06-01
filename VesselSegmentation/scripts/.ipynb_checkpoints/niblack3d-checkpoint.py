@@ -4,16 +4,20 @@ from scripts.algorithm_class import Algorithm
 
 class Niblack3d(Algorithm):
     def __init__(self, vol=None, window_size=None,
-                 coef_k=None, coef_a=None,
+                 coef_mu=None,
+                 coef_sig=None,
+                 coef_a=None,
                  thresh=None):
         
         super().__init__(vol)
         assert(window_size is not None)
-        assert(coef_k is not None)
+        assert(coef_mu is not None)
+        assert(coef_sig is not None)
         assert(coef_a is not None)
         
         self.window_size = window_size
-        self.coef_k = coef_k
+        self.coef_mu = coef_mu
+        self.coef_sig = coef_sig
         self.coef_a = coef_a
         self.integr = iv.IntegralVol(vol)
         self.integr_sq = iv.IntegralVol(vol**2)
@@ -87,6 +91,6 @@ class Niblack3d(Algorithm):
         #assert sigma >= 0
 
         sigma = sigma**0.5
-        T = mu + (self.coef_k * sigma) + self.coef_a
+        T = (self.coef_mu * mu) + (self.coef_sig * sigma) + self.coef_a
         return(T, mu, sigma)
     

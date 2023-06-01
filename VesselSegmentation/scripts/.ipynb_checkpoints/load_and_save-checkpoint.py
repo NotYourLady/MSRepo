@@ -6,6 +6,9 @@ import nibabel as nib
 
 
 def load_nii_vol(path_to_vol, dtype):
+    if not os.path.exists(path_to_vol):
+        print("ERROR: <", path_to_vol, "> NOT EXISTS")
+        return(None, None)
     vol_file = nib.load(path_to_vol)
     vol = np.array(vol_file.dataobj, dtype=dtype)
     return(vol, vol_file.affine)
