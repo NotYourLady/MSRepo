@@ -13,17 +13,26 @@ def load_nii_vol(path_to_vol, dtype):
     vol = np.array(vol_file.dataobj, dtype=dtype)
     return(vol, vol_file.affine)
     
+def get_name_from_path(path_to_sample):
+    name = ''
+    for i in range(len(path_to_sample)-1, -1, -1):
+        if path_to_sample[i] not in ('/', "\\"):
+            name = path_to_sample[i] + name
+        else:
+            return name
+    raise RuntimeError("Can't get sample name from path")
 
+                                     
 def load_sample_data(path_to_sample, dtype):
     head_data = load_nii_vol(path_to_sample + "/head.nii.gz", dtype=dtype)
     vessels_data = load_nii_vol(path_to_sample + "/vessels.nii.gz", dtype=dtype)
     brain_data = load_nii_vol(path_to_sample + "/brain.nii.gz", dtype=dtype)
-    
     data = {
         "head" : head_data[0],
         "vessels" : vessels_data[0],
         "brain" : brain_data[0],
-        "affine" : head_data[1]
+        "affine" : head_data[1],
+        "sample_name" : get_name_from_path(path_to_sample)
     }
     return(data)
 

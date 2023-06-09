@@ -7,17 +7,17 @@ class conv_block(nn.Module):
     Convolution Block
     """
 
-    def __init__(self, in_channels, out_channels, k_size=3, stride=1, padding=1, bias=True):
+    def __init__(self, in_channels, out_channels, k_size=3, stride=1, padding=1, bias=True, act_fn=nn.ReLU(inplace=True)):
         super(conv_block, self).__init__()
         self.conv = nn.Sequential(
             nn.Conv3d(in_channels=in_channels, out_channels=out_channels, kernel_size=k_size,
                       stride=stride, padding=padding, bias=bias),
             nn.BatchNorm3d(num_features=out_channels),
-            nn.ReLU(inplace=True),
+            act_fn,
             nn.Conv3d(in_channels=out_channels, out_channels=out_channels, kernel_size=k_size,
                       stride=stride, padding=padding, bias=bias),
             nn.BatchNorm3d(num_features=out_channels),
-            nn.ReLU(inplace=True)
+            act_fn
         )
 
     def forward(self, x):
@@ -31,14 +31,14 @@ class up_conv(nn.Module):
     """
 
     # def __init__(self, in_ch, out_ch):
-    def __init__(self, in_channels, out_channels, k_size=3, stride=1, padding=1, bias=True):
+    def __init__(self, in_channels, out_channels, k_size=3, stride=1, padding=1, bias=True, act_fn=nn.ReLU(inplace=True)):
         super(up_conv, self).__init__()
         self.up = nn.Sequential(
             nn.Upsample(scale_factor=2),
             nn.Conv3d(in_channels=in_channels, out_channels=out_channels, kernel_size=k_size,
                       stride=stride, padding=padding, bias=bias),
             nn.BatchNorm3d(num_features=out_channels),
-            nn.ReLU(inplace=True))
+            act_fn)
 
     def forward(self, x):
         x = self.up(x)

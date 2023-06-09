@@ -189,7 +189,6 @@ class Network(nn.Module):
         x = F.interpolate(
             x, scale_factor=self.factor, mode='trilinear', align_corners=True)
         x = self.final(x)
-        print("x.min():", x.min())
         return [x]
 
 

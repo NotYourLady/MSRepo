@@ -109,8 +109,21 @@ class ExponentialLogarithmicLoss:
         epx_log_tversky = torch.pow(log_tversky + self.eps, self.gamma_tversky)
         #print("w_exp_bce:", w_exp_bce, "epx_log_tversky:", epx_log_tversky)
         return self.lamb * w_exp_bce + (1 - self.lamb) * epx_log_tversky
-            
-
-
     
+class MultyscaleLoss(nn.Module):
+    def __init__(self, loss):
+        super(MultyscaleLoss, self).__init__()
+        self.loss = loss
+        self.pool = nn.MaxPool3d(kernel_size=2, stride=2)
+        
+    def forward(self, y_real, outs):
+        out_loss = 0
+        for idx, out in enumerate(outs):
+            #print("y_real:", y_real.shape, "out:",  out.shape)
+            #out_loss += 2**(-3 * idx) * self.loss(y_real, out)
+            out_loss += 2**(-idx) * self.loss(y_real, out)
+            y_real = self.pool(y_real)
+            return(out_loss) ### TEST
+    
+        #return(out_loss)
     

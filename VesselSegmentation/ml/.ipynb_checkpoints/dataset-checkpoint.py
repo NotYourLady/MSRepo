@@ -57,7 +57,6 @@ class HVB_Dataset(Dataset):
                 sample_data = self.RAM_samples[sample_info.sample_name]
             else: 
                 sample_data = load_sample_data(sample_info.sample_path, np.float32)
-            
             sample_data["head"] = torch.tensor(norm_vol(sample_data["head"])).unsqueeze(0)
             sample_data["vessels"] = torch.tensor(sample_data["vessels"]).unsqueeze(0)
             sample_data["brain"] = torch.tensor(sample_data["brain"]).unsqueeze(0)
@@ -121,7 +120,7 @@ def preprocess_dataset(settings, dtype=np.float32):
             sample_paths_list.append(os.path.join(dirname, subdirname))
             sample_names_list.append(subdirname)
             sample = load_sample_data(sample_paths_list[-1], dtype)
-            check_shapes_of_data(sample)
+            check_shapes_of_data(sample, sample_paths_list[-1])
             if settings["RAM_samples"] != False:
                 settings["RAM_samples"].update({sample_names_list[-1] : sample})
             
@@ -142,7 +141,7 @@ def preprocess_dataset(settings, dtype=np.float32):
     sample_data_df.to_csv(settings['data_dir'] + "/sample_data.csv", index=False)
     return(patch_data_df, sample_data_df)
 
-def check_shapes_of_data(sample):
+def check_shapes_of_data(sample, path_to_sample):
     if (isinstance(sample, str)):
         sample_data = load_sample_data(path_to_sample)
         head_vol_shape = sample_data["head"][0].shape
