@@ -30,7 +30,8 @@ class Trainer:
         
     def fit(self, model, train_dataloader=None, val_dataloader=None):
         self.model = model.to(self.device)
-        self.optimizer = self.opt_fn(self.model)
+        if self.opt_fn is not None:
+            self.optimizer = self.opt_fn(self.model)
         if self.sheduler_fn is not None:
             self.sheduler = self.sheduler_fn(self.optimizer)
         

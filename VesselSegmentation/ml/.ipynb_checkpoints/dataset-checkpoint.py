@@ -1,16 +1,139 @@
 import os
-import torch
 import numpy as np
 import nibabel as nib
 import pandas as pd
-
+import torch
+import torchio as tio
 from torch.utils.data import Dataset
+from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch.nn.functional as F
 
 from scripts.load_and_save import load_sample_data
 
 
+class HeadDataset(Dataset):
+    def __init__(self, data_dir, train_settings=None, test_settings=None):
+        super(Dataset, self).__init__()
+        self.data_dir = data_dir
+        self.train_settings = train_settings
+        self.test_settings = test_settings
+        
+        self.train_data = None
+        self.train_dataloader = None
+        if train_settings is not None:
+            self.train_data = self.set_data(data_type='train')
+            self.train_dataloader = self.set_train_dataloader()
+        self.test_data = None
+        self.test_dataloader = None
+        if test_settings is not None:
+            self.test_data = self.set_data(data_type='test')
+            self.test_dataloader = self.set_test_dataloader()
+
+    
+    def set_data(self, data_type):
+        augmentation_coef = 1
+        if data_type=='train':
+            augmentation_coef = self.train_settings["augmentation_coef"]
+            path_to_data = self.data_dir + "/train"
+            transforms = [
+                tio.RescaleIntensity(out_min_max=(float(0), float(1))),
+                #tio.transforms.ToCanonical(),
+                #tio.transforms.Resample(target=0.5),
+                #tio.transforms.RandomElasticDeformation(num_control_points=7, max_displacement=10)
+             ]
+            transform = tio.Compose(transforms)
+        elif data_type=='test':
+            path_to_data = self.data_dir + "/test"
+            transforms=[
+                tio.RescaleIntensity(out_min_max=(float(0), float(1))),
+                #tio.transforms.ToCanonical(),
+                #tio.transforms.Resample(target=0.5),
+            ]
+            transform = tio.Compose(transforms)
+        else:
+            raise RuntimeError("HeadDataset::set_data ERROR")
+        
+        subjects_list = []
+        for dirname, dirnames, filenames in os.walk(path_to_data):
+            for subdirname in dirnames:
+                p = os.path.join(dirname, subdirname)
+                subject_dict = {'head': tio.ScalarImage(p + '/head.nii.gz'),
+                                'vessels': tio.LabelMap(p + '/vessels.nii.gz'),
+                                "sample_name" : subdirname}
+                                #'brain': tio.LabelMap(p + '/brain.nii.gz')}
+                subject = tio.Subject(subject_dict)
+                if data_type=='train' and self.train_settings["sampler"]=="weighted":
+                    self.add_prob_map(subject)
+                subjects_list += augmentation_coef * (subject,)      
+        return(tio.SubjectsDataset(subjects_list, transform=transform))
+    
+    
+    def add_prob_map(self, subject, focus=1.5):
+        _, h, w, d = subject.shape
+        x0 = h//2
+        y0 = w//2
+        prob_slice = np.ones((h,w))
+
+        for x in range(prob_slice.shape[0]):
+            for y in range(prob_slice.shape[1]):
+                prob_slice[x, y] = ((focus-((x/x0-1)**2 + (y/y0-1)**2)**0.5))
+
+        prob_slice = prob_slice.clip(0, 1)
+        prob_vol = np.stack(d*[prob_slice,], axis=2)
+        #prob_vol = torch.tensor(prob_slice).unsqueeze(2)
+
+        prob_Image = tio.Image(tensor=torch.tensor(prob_vol).unsqueeze(0), type=tio.SAMPLING_MAP, affine=subject.head.affine)
+        subject.add_image(prob_Image, "prob_map")
+        return(subject)
+    
+    
+    def set_train_dataloader(self):
+        if self.train_settings["sampler"] == "weighted":
+            sampler = tio.data.WeightedSampler(self.train_settings["patch_shape"], probability_map='prob_map')
+        else:
+            sampler = tio.data.UniformSampler(self.train_settings["patch_shape"])
+        patches_queue = tio.Queue(
+            self.train_data,
+            self.train_settings["patches_queue_length"],
+            self.train_settings["patches_per_volume"],
+            sampler,
+            num_workers=self.train_settings["num_workers"],
+        )
+
+        patches_loader = DataLoader(
+            patches_queue,
+            batch_size=self.train_settings["batch_size"],
+            num_workers=0,  #must be
+        )
+        return(patches_loader)
+    
+    
+    def set_test_dataloader(self):
+        test_loaders = []
+        for subject in self.test_data:
+            grid_sampler = tio.GridSampler(subject,
+                                           patch_size=self.test_settings["patch_shape"],
+                                           patch_overlap=self.test_settings["overlap_shape"])
+            grid_aggregator = tio.data.GridAggregator(sampler=grid_sampler, overlap_mode='hann')
+            patch_loader = torch.utils.data.DataLoader(grid_sampler,
+                                                       batch_size=self.test_settings["batch_size"])
+            GT = subject.vessels
+            sample_name = subject.sample_name
+            test_loaders.append((patch_loader, grid_aggregator, GT, sample_name))
+        return(test_loaders)
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
 class HVB_Dataset(Dataset):
     def __init__(self, settings):
         super(Dataset, self).__init__()
@@ -96,9 +219,9 @@ def generate_patches_pixels(vol_shape, patch_shape, patches_number):
 def norm_vol(vol, mode="linear"): #mode= "linear", "normal"
     assert mode in ("linear", "normal")
     if mode == "normal":
-        vol = (vol-vol.mean())/vol.std()
+        vol = (vol-vol.mean())/vol.std() # -1, 1
     if mode == "linear":
-        vol = (vol-vol.min())/(vol.max() - vol.min())
+        vol = (vol-vol.min())/(vol.max() - vol.min()) #from 0 to 1
     return vol
 
 def preprocess_dataset(settings, dtype=np.float32):
@@ -141,6 +264,7 @@ def preprocess_dataset(settings, dtype=np.float32):
     sample_data_df.to_csv(settings['data_dir'] + "/sample_data.csv", index=False)
     return(patch_data_df, sample_data_df)
 
+
 def check_shapes_of_data(sample, path_to_sample):
     if (isinstance(sample, str)):
         sample_data = load_sample_data(path_to_sample)
@@ -157,5 +281,6 @@ def check_shapes_of_data(sample, path_to_sample):
         assert head_vol_shape == brain_vol_shape, "Error: head_vol.shape != brain_vol.shape" 
     else:
         raise Exception("Can't check sample shapes")
-    
-    
+
+        
+

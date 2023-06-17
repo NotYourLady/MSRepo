@@ -8,8 +8,10 @@ class IOU_Metric():
         self.thresh = thresh
 
     def __call__(self, outputs, labels):
+        assert outputs.shape==labels.shape
         outputs = outputs.squeeze(1).byte()  # BATCH x 1 x H x W x D => BATCH x H x W x D
         labels = labels.squeeze(1).byte()
+        
         SMOOTH = 1e-8
         intersection = (outputs & labels).float().sum((1, 2, 3))  # Will be zero if Truth=0 or Prediction=0
         union = (outputs | labels).float().sum((1, 2, 3))         # Will be zzero if both are 0
@@ -103,12 +105,41 @@ class ExponentialLogarithmicLoss:
         self.tversky = TverskyLoss(tversky_alfa)
         self.eps = 1e-8
         
+        
     def __call__(self, y_real, y_pred):
         w_exp_bce = self.weighted_bce_loss(y_real, y_pred)
         log_tversky = -torch.log(1-self.tversky(y_real, y_pred) + self.eps)
         epx_log_tversky = torch.pow(log_tversky + self.eps, self.gamma_tversky)
         #print("w_exp_bce:", w_exp_bce, "epx_log_tversky:", epx_log_tversky)
         return self.lamb * w_exp_bce + (1 - self.lamb) * epx_log_tversky
+
+    
+class SumLoss:
+    def __init__(self, alfa=0.5):
+        self.eps = 1e-3
+        self.alfa = alfa
+        
+    def __call__(self, y_real, y_pred):
+        k = y_real.sum()/y_pred.sum()
+        k = torch.clip(k, min=0.1, max=10)
+        #print("k:", k)
+        loss = torch.log(self.alfa * torch.exp(k) + (1-self.alfa) * torch.exp(1/(k+self.eps)))-1
+        return loss
+    
+
+class LinearCombLoss:
+    def __init__(self, funcs_and_сoef_list):
+        self.funcs_and_сoef_list = funcs_and_сoef_list
+        
+    def __call__(self, y_real, y_pred):
+        loss = 0
+        for func, coef in self.funcs_and_сoef_list:
+            f_i = func(y_real, y_pred)
+            #print("f_i:", f_i)
+            loss += coef * func(y_real, y_pred)
+            
+        return loss
+    
     
 class MultyscaleLoss(nn.Module):
     def __init__(self, loss):
@@ -125,5 +156,4 @@ class MultyscaleLoss(nn.Module):
             y_real = self.pool(y_real)
             return(out_loss) ### TEST
     
-        #return(out_loss)
-    
+        return(out_loss)    
