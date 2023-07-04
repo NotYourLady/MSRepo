@@ -4,7 +4,7 @@ import torch.utils.data
 
 from ml.models.unet3d import conv_block, up_conv
 
-class U_Net_DeepSup(nn.Module):
+class Unet_MSS(nn.Module):
 
     """
     UNet - Basic Implementation
@@ -12,7 +12,7 @@ class U_Net_DeepSup(nn.Module):
     Paper : https://arxiv.org/abs/1505.04597
     """
     def __init__(self, channel_coef=64, in_ch=1, out_ch=1, act_fn=nn.ReLU(inplace=True)):
-        super(U_Net_DeepSup, self).__init__()
+        super(Unet_MSS, self).__init__()
 
         filters = [channel_coef, channel_coef * 2, channel_coef * 4,
                    channel_coef * 8, channel_coef * 16] 
@@ -125,4 +125,7 @@ class U_Net_DeepSup(nn.Module):
         #print("d1_out:")
         #print(d1_out.shape)
         
-        return [d1_out, d2_out, d3_out]
+        #return [d1_out, d2_out, d3_out]
+        return [d1_out, d2_out]
+    
+    

@@ -150,10 +150,8 @@ class MultyscaleLoss(nn.Module):
     def forward(self, y_real, outs):
         out_loss = 0
         for idx, out in enumerate(outs):
-            #print("y_real:", y_real.shape, "out:",  out.shape)
             #out_loss += 2**(-3 * idx) * self.loss(y_real, out)
             out_loss += 2**(-idx) * self.loss(y_real, out)
             y_real = self.pool(y_real)
-            return(out_loss) ### TEST
-    
+            
         return(out_loss)    
