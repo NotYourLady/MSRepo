@@ -43,10 +43,12 @@ class DataProcessor:
         path = save_dir + f"/{subject.sample_name}_{self.names_dict[subject.sample_name]}"
         if not os.path.exists(path):
             os.mkdir(path)
-        self.remove_affine_shift(subject.head.affine)
-        subject.head.save(path+"/head.nii.gz")  
-        self.remove_affine_shift(subject.vessels.affine)
-        subject.vessels.save(path+"/vessels.nii.gz")
+        if 'head' in subject.keys():
+            self.remove_affine_shift(subject.head.affine)
+            subject.head.save(path+"/head.nii.gz")  
+        if 'vessels' in subject.keys():
+            self.remove_affine_shift(subject.vessels.affine)
+            subject.vessels.save(path+"/vessels.nii.gz")
     
     
     def __call__(self, raw_data_path, processed_data_path):
@@ -54,9 +56,11 @@ class DataProcessor:
         for dirname, dirnames, filenames in os.walk(raw_data_path):
             for subdirname in dirnames:
                 p = os.path.join(dirname, subdirname)
-                subject_dict = {'head': tio.ScalarImage(p + '/head.nii.gz'),
-                                'vessels': tio.LabelMap(p + '/vessels.nii.gz'),
-                                "sample_name" : subdirname}
+                subject_dict = {"sample_name" : subdirname}
+                if os.path.exists(p + '/head.nii.gz'):
+                    subject_dict.update({'head': tio.ScalarImage(p + '/head.nii.gz')})
+                if os.path.exists(p + '/vessels.nii.gz'):
+                    subject_dict.update({'vessels': tio.LabelMap(p + '/vessels.nii.gz')})
                 subject = tio.Subject(subject_dict)
                 subjects_list += (subject,)
         
