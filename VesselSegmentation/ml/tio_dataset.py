@@ -34,7 +34,7 @@ class TioDataset(Dataset):
             self.train_data = self.set_data(data_type='train')
             self.train_dataloader = self.set_dataloader(data_type='train')
             
-        if train_settings is not None:
+        if val_settings is not None:
             self.val_data = self.set_data(data_type='val')
             self.val_dataloader = self.set_dataloader(data_type='val')
             

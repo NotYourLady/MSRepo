@@ -11,11 +11,11 @@ class Unet_MSS(nn.Module):
     Input _ [batch * channel(# of channels of each image) * depth(# of frames) * height * width].
     Paper : https://arxiv.org/abs/1505.04597
     """
-    def __init__(self, channel_coef=64, in_ch=1, out_ch=1, act_fn=nn.ReLU(inplace=True)):
+    def __init__(self, channels_coef=64, in_ch=1, out_ch=1, act_fn=nn.ReLU(inplace=True)):
         super(Unet_MSS, self).__init__()
 
-        filters = [channel_coef, channel_coef * 2, channel_coef * 4,
-                   channel_coef * 8, channel_coef * 16] 
+        filters = [channels_coef, channels_coef * 2, channels_coef * 4,
+                   channels_coef * 8, channels_coef * 16] 
 
         self.Maxpool1 = nn.MaxPool3d(kernel_size=2, stride=2)
         self.Maxpool2 = nn.MaxPool3d(kernel_size=2, stride=2)
@@ -126,6 +126,7 @@ class Unet_MSS(nn.Module):
         #print(d1_out.shape)
         
         #return [d1_out, d2_out, d3_out]
-        return [d1_out, d2_out]
+        #return [d1_out, d2_out]
+        return d1_out
     
     
