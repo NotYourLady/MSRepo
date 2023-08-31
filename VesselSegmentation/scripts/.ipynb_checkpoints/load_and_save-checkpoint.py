@@ -42,10 +42,14 @@ def get_dcm_info(path_to_dcm):
     datasets_dict = {}
     for name in slices_names:
         dcm_file = dcmread(path_to_dcm + name)
-        sd = dcm_file.SeriesDescription
+        if hasattr(dcm_file, 'SeriesDescription'):
+            sd = dcm_file.SeriesDescription
+        else:
+            sd = "Noname"           
         if (datasets_dict.get(sd) is None):
             datasets_dict.update({
                 sd : {
+                    "dcm_file": dcm_file,
                     "vol_shape" : None,
                     "vox_size" : None,
                     "file_names" : [name,]
@@ -96,4 +100,16 @@ def save_vol_as_nii(numpy_arr, affine, path_to_save):
     empty_header = nib.Nifti1Header()
     Nifti1Image = nib.Nifti1Image(numpy_arr, affine, empty_header)
     nib.save(Nifti1Image, path_to_save)
-  
+
+    
+def raw2nifti(path_to_row, path_to_nifti, shape, dtype, return_vol=False):
+    arr = np.fromfile(path_to_row, dtype=dtype).reshape(shape)
+    affine = [[1, 0, 0, 0],
+              [0, 1, 0, 0],
+              [0, 0, 1, 0],
+              [0, 0, 0, 1],]
+    save_vol_as_nii(arr, affine, path_to_nifti)
+    if return_vol:
+        return arr
+
+

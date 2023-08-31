@@ -67,7 +67,7 @@ class TioDataset(Dataset):
         return(tio.SubjectsDataset(subjects_list))
 
 
-    def add_prob_map(self, subject, focus=1.5):
+    def add_prob_map(self, subject, focus=0.9): #focus=1.5):
         _, h, w, d = subject.shape
         x0 = h//2
         y0 = w//2

@@ -61,7 +61,7 @@ class MultuProcCalc:
                                             [v_s[1]//2, v_s[1]],
                                             [0, v_s[2]]]})
             process_data.append({"edges" : [[v_s[0]//2, v_s[0]],
-                                            [v_s[0]//2, v_s[1]],
+                                            [v_s[1]//2, v_s[1]],
                                             [0, v_s[2]]]})
 
         if self.num_workers==8:
@@ -75,7 +75,7 @@ class MultuProcCalc:
                                             [v_s[1]//2, v_s[1]],
                                             [0, v_s[2]//2]]})
             process_data.append({"edges" : [[v_s[0]//2, v_s[0]],
-                                            [v_s[0]//2, v_s[1]],
+                                            [v_s[1]//2, v_s[1]],
                                             [0, v_s[2]//2]]})    
             process_data.append({"edges" : [[0, v_s[0]//2],
                                             [0, v_s[1]//2],
@@ -87,6 +87,6 @@ class MultuProcCalc:
                                             [v_s[1]//2, v_s[1]],
                                             [v_s[2]//2, v_s[2]]]})
             process_data.append({"edges" : [[v_s[0]//2, v_s[0]],
-                                            [v_s[0]//2, v_s[1]],
+                                            [v_s[1]//2, v_s[1]],
                                             [v_s[2]//2, v_s[2]]]})
         return(process_data)

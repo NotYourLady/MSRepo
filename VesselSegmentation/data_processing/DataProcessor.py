@@ -6,27 +6,33 @@ from tqdm import tqdm
 
 
 class DataProcessor:
-    def __init__(self, aug_coef=2):
+    def __init__(self, aug_coef=2, resample=None, sample_name=None):
+                
         transforms = [
-            tio.transforms.Resample(target=0.5),
-            #tio.transforms.RescaleIntensity(out_min_max=(0, 1)),
+            #tio.transforms.RescaleIntensity(out_min_max=(0, 1), percentiles=(0.5, 99.5)),
             tio.transforms.ZNormalization(),
             ]
-        self.transform = tio.Compose(transforms)
         
         aug_transforms = [
-            tio.transforms.Resample(target=0.5),
             #tio.transforms.RandomBiasField(0.1),
             tio.transforms.RandomGamma(),
             tio.transforms.RandomElasticDeformation(num_control_points=7, max_displacement=7.5),
-            #tio.transforms.RescaleIntensity(out_min_max=(0, 1)),
+            #tio.transforms.RescaleIntensity(out_min_max=(0, 1), percentiles=(0.5, 99.5)),
             tio.transforms.ZNormalization(),
             ]
+        if resample is not None:
+            transforms = [tio.transforms.Resample(target=resample, image_interpolation='bspline',
+                                    label_interpolation= 'linear'),] + transforms
+            aug_transforms = [tio.transforms.Resample(target=resample, image_interpolation='bspline',
+                                    label_interpolation= 'linear'),] + aug_transforms
+        
+        self.transform = tio.Compose(transforms)
         self.aug_transform = tio.Compose(aug_transforms)
         
         self.aug_coef = aug_coef
+        self.sample_name = sample_name
         self.names_dict = {}
-    
+        
     
     def remove_affine_shift(self, affine):
         affine[0][3] = 0
@@ -56,7 +62,11 @@ class DataProcessor:
         for dirname, dirnames, filenames in os.walk(raw_data_path):
             for subdirname in dirnames:
                 p = os.path.join(dirname, subdirname)
-                subject_dict = {"sample_name" : subdirname}
+                if self.sample_name is not None:
+                    subject_dict = {"sample_name" : self.sample_name}
+                else:
+                    subject_dict = {"sample_name" : subdirname}
+                    
                 if os.path.exists(p + '/head.nii.gz'):
                     subject_dict.update({'head': tio.ScalarImage(p + '/head.nii.gz')})
                 if os.path.exists(p + '/vessels.nii.gz'):

@@ -11,9 +11,11 @@ class Unet_MSS(nn.Module):
     Input _ [batch * channel(# of channels of each image) * depth(# of frames) * height * width].
     Paper : https://arxiv.org/abs/1505.04597
     """
-    def __init__(self, channels_coef=64, in_ch=1, out_ch=1, act_fn=nn.ReLU(inplace=True)):
+    def __init__(self, channels_coef=64, in_ch=1, out_ch=1,
+                 act_fn=nn.ReLU(inplace=True), minimax_out=False):
         super(Unet_MSS, self).__init__()
 
+        self.minimax_out = minimax_out
         filters = [channels_coef, channels_coef * 2, channels_coef * 4,
                    channels_coef * 8, channels_coef * 16] 
 
@@ -61,72 +63,51 @@ class Unet_MSS(nn.Module):
                 raise RuntimeError(f"Found NAN in output {i} at indices: ", nan_mask.nonzero(), "where:", out[nan_mask.nonzero()[:, 0].unique(sorted=True)])
 
     def forward(self, x):
-        #print("unet")
-        #print(x.shape)
-
         e1 = self.Conv1(x)
-        #print("e1:")
-        #print(e1.shape)
 
         e2 = self.Maxpool1(e1)
         e2 = self.Conv2(e2)
-        #print("e2:")
-        #print(e2.shape)
 
         e3 = self.Maxpool2(e2)
         e3 = self.Conv3(e3)
-        #print("e3:")
-        #print(e3.shape)
 
         e4 = self.Maxpool3(e3)
         e4 = self.Conv4(e4)
-        #print("e4:")
-        #print(e4.shape)
 
         e5 = self.Maxpool4(e4)
         e5 = self.Conv5(e5)
-        #print("e5:")
-        #print(e5.shape)
-
 
         d4 = self.Up4(e5)
         d4 = torch.cat((e4, d4), dim=1)
         d4 = self.Up_conv4(d4)
-        #print("d4:")
-        #print(d4.shape)
         
         d3 = self.Up3(d4)
         d3 = torch.cat((e3, d3), dim=1)
         d3 = self.Up_conv3(d3)
-        #print("d3:")
-        #print(d3.shape)
+
         d3_out  = self.Conv_d3(d3)
         d3_out = self.act(d3_out)
-        #print("d3_out:")
-        #print(d3_out.shape)
                 
         d2 = self.Up2(d3)
         d2 = torch.cat((e2, d2), dim=1)
         d2 = self.Up_conv2(d2) 
-        #print("d2:")
-        #print(d2.shape)
+
         d2_out  = self.Conv_d2(d2)
         d2_out = self.act(d2_out)
-        #print("d2_out:")
-        #print(d2_out.shape)
 
         d1 = self.Up1(d2)
         d1 = torch.cat((e1, d1), dim=1)
         d1 = self.Up_conv1(d1)
-        #print("d1:")
-        #print(d1.shape)
+
         d1_out = self.Conv_d1(d1)
-        d1_out = self.act(d1_out)
-        #print("d1_out:")
-        #print(d1_out.shape)
+        if self.minimax_out:
+            d1_out = (d1_out - d1_out.min())/(d1_out.max() - d1_out.min() + 1e-8)
+        else:
+            d1_out = self.act(d1_out)
         
         #return [d1_out, d2_out, d3_out]
         #return [d1_out, d2_out]
+        
         return d1_out
     
     

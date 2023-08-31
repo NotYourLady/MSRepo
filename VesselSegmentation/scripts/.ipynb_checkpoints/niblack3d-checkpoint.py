@@ -7,7 +7,9 @@ class Niblack3d(Algorithm):
                  coef_mu=None,
                  coef_sig=None,
                  coef_a=None,
-                 thresh=None):
+                 thresh=None,
+                 weights_out=False,
+                 min_ratio=0.9):
         
         super().__init__(vol)
         assert(window_size is not None)
@@ -22,6 +24,11 @@ class Niblack3d(Algorithm):
         self.integr = iv.IntegralVol(vol)
         self.integr_sq = iv.IntegralVol(vol**2)
         self.thresh = thresh
+        self.weights_out = weights_out
+        if weights_out:
+            self.min_ratio = min_ratio
+            self.C = (np.e-1)/(1-self.min_ratio)
+        
     
     def binarize(self, edges=None, return_sigma=False):
         if edges is None:
@@ -31,7 +38,7 @@ class Niblack3d(Algorithm):
         
         bin_vol = np.zeros((edges[0][1]-edges[0][0],
                             edges[1][1]-edges[1][0],
-                            edges[2][1]-edges[2][0]), dtype=bool)
+                            edges[2][1]-edges[2][0])) #, dtype=bool)
 
         sigmas = []
 
@@ -56,17 +63,29 @@ class Niblack3d(Algorithm):
                     #    T, sigma = self.calc_T(integr, integr_sq, w_s, f, s)
 
                     
-                    if self.vol[i, j, k]>=T:
-                        if (self.thresh is not None):
-                            if (self.vol[i, j, k] > self.thresh[0] and
-                                self.vol[i, j, k] < self.thresh[1]):
+                    if self.weights_out is False:
+                        if self.vol[i, j, k]>=T:
+                            if (self.thresh is not None):
+                                if (self.vol[i, j, k] > self.thresh[0] and
+                                    self.vol[i, j, k] < self.thresh[1]):
+                                    bin_vol[i - edges[0][0],
+                                            j - edges[1][0],
+                                            k - edges[2][0]] = 1
+                            else:    
                                 bin_vol[i - edges[0][0],
                                         j - edges[1][0],
-                                        k - edges[2][0]] = 1
-                        else:    
+                                        k - edges[2][0]] = 1  
+                    else:   
+                        ratio = self.vol[i, j, k]/T
+                        if ratio<self.min_ratio:
                             bin_vol[i - edges[0][0],
                                     j - edges[1][0],
-                                    k - edges[2][0]] = 1  
+                                    k - edges[2][0]] = 0
+                        else:
+                            bin_vol[i - edges[0][0],
+                                    j - edges[1][0],
+                                    k - edges[2][0]] = np.log(np.e + self.C*(ratio - 1))
+                        
         if not return_sigma:
             return(bin_vol)
         else:
