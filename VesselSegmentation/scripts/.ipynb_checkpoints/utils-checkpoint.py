@@ -4,10 +4,11 @@ import os
 from time import time, sleep
 import matplotlib.pyplot as plt
 
-def print_img(vol, axis, slice_=None, title= 'title', cmap='hot'):
+def print_img(vol, axis, slice_=None, title= 'title', cmap='hot', bar=True):
     axis.set_title(title)
     im = axis.imshow(vol[:, :, slice_], cmap=cmap)
-    plt.colorbar(im)
+    if bar:
+        plt.colorbar(im)
 
     
 def print_imgs(list_imgs, slice_n=None, size=(5, 4)):
