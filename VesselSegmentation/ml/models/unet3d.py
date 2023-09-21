@@ -51,11 +51,10 @@ class U_Net(nn.Module):
     Input _ [batch * channel(# of channels of each image) * depth(# of frames) * height * width].
     Paper : https://arxiv.org/abs/1505.04597
     """
-
-    def __init__(self, in_ch=1, out_ch=1):
+    def __init__(self, in_ch=1, out_ch=1, channels=16):
         super(U_Net, self).__init__()
 
-        n1 = 64 #TODO: make params
+        n1 = channels #
         filters = [n1, n1 * 2, n1 * 4, n1 * 8, n1 * 16]  # 64,128,256,512,1024
 
         self.Maxpool1 = nn.MaxPool3d(kernel_size=2, stride=2)
@@ -118,7 +117,7 @@ class U_Net(nn.Module):
         
         out = self.Conv(d2)
         out = self.active(out)
-        return [out]
+        return out
 
 class U_Net_DeepSup(nn.Module):
     """

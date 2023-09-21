@@ -52,15 +52,13 @@ def hessian_detect_2016(img, sigma, tau=0.5):
     return(out)    
 
 
+
 def nn_detect(vol, scale, l_func):
     H = hessian_matrix(vol, scale, use_gaussian_derivatives=False)
-    eigvals = hessian_matrix_eigvals(H)
-    sorted_eigvals = eigvals[np.argsort(np.abs(eigvals[:, 0, 0, 0]), 0)]
     
-    eigvals = torch.tensor(np.array(eigvals))
+    eigvals = torch.tensor(np.array(H))
     eigvals = eigvals.permute(1,2,3,0)
     eigvals = nn.Flatten(start_dim=0, end_dim=2)(eigvals)
     eigvals = l_func(eigvals).detach().cpu()
     eigvals = torch.nn.Unflatten(0, vol.shape)(eigvals)
-    
     return eigvals[:, :, :, 0].detach().numpy()

@@ -57,9 +57,11 @@ class TioDataset(Dataset):
         for dirname, dirnames, filenames in os.walk(path_to_data):
             for subdirname in dirnames:
                 p = os.path.join(dirname, subdirname)
-                subject_dict = {'head': tio.ScalarImage(p + '/head.nii.gz'),
-                                'vessels': tio.LabelMap(p + '/vessels.nii.gz'),
-                                "sample_name" : subdirname}
+                subject_dict = {"sample_name" : subdirname}
+                if os.path.exists(p + '/head.nii.gz'):
+                    subject_dict.update({'head': tio.ScalarImage(p + '/head.nii.gz')})
+                if os.path.exists(p + '/vessels.nii.gz'):
+                    subject_dict.update({'vessels': tio.LabelMap(p + '/vessels.nii.gz')})
                 subject = tio.Subject(subject_dict)
                 if data_type=='train' and self.train_settings["sampler"]=="weighted":
                     self.add_prob_map(subject)
@@ -67,7 +69,7 @@ class TioDataset(Dataset):
         return(tio.SubjectsDataset(subjects_list))
 
 
-    def add_prob_map(self, subject, focus=0.9): #focus=1.5):
+    def add_prob_map(self, subject, focus=1.5):
         _, h, w, d = subject.shape
         x0 = h//2
         y0 = w//2
@@ -122,7 +124,7 @@ class TioDataset(Dataset):
                 num_workers=0,  #must be
             )
             return(patches_loader)
-        else: #data_type='test'
+        else: ### data_type='test'
             test_loaders = []
             for subject in data:
                 grid_sampler = tio.GridSampler(subject,
@@ -132,7 +134,10 @@ class TioDataset(Dataset):
                 patch_loader = torch.utils.data.DataLoader(grid_sampler,
                                                            batch_size=settings["batch_size"],
                                                            num_workers=settings["num_workers"])
-                GT = subject.vessels
+                if ("vessels" in subject.keys()):
+                    GT = subject.vessels
+                else:
+                    GT = subject.head
                 sample_name = subject.sample_name
                 test_loaders.append({"patch_loader" : patch_loader,
                                      "grid_aggregator" : grid_aggregator,
