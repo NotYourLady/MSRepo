@@ -45,12 +45,13 @@ class MultuScaleDilationConvBlock(nn.Module):
 
 
 class GaussianBlur3D(nn.Module):
-    def __init__(self, sigma, device):
+    def __init__(self, sigma, device, in_channels=1):
         super(GaussianBlur3D, self).__init__()
+        self.in_channels = in_channels
         self.device = device
         self.kernel_size = 1+6*int(sigma)
         
-        self.conv = nn.Conv3d(1, 1, self.kernel_size, stride=1, padding=self.kernel_size//2,
+        self.conv = nn.Conv3d(1, in_channels, self.kernel_size, stride=1, padding=self.kernel_size//2,
                               dilation=1, bias=False, padding_mode='replicate').to(self.device)
         self.set_weights(sigma)
     
@@ -62,7 +63,8 @@ class GaussianBlur3D(nn.Module):
         kernel1d = torch.exp(-kernel1d)
         kernel3d = torch.einsum('i,j,k->ijk', kernel1d, kernel1d, kernel1d)
         kernel3d /= kernel3d.sum()
-        self.conv.weight = torch.nn.Parameter(kernel3d.reshape(1, 1, *kernel3d.shape), requires_grad=False)
+        kernel3d = torch.cat(self.in_channels*[kernel3d.unsqueeze(0),], axis=0).unsqueeze(0)
+        self.conv.weight = torch.nn.Parameter(kernel3d, requires_grad=False)
         
     def forward(self, vol, sigma=None):
         #print(vol.is_cuda, sigma.is_cuda, self.conv.weight.is_cuda)
@@ -72,9 +74,9 @@ class GaussianBlur3D(nn.Module):
 
 
 class HessianTorch(nn.Module):
-    def __init__(self, sigma, device):
+    def __init__(self, sigma, device, in_channels=1):
         super(HessianTorch, self).__init__()
-        self.gauss = GaussianBlur3D(sigma=sigma, device=device)
+        self.gauss = GaussianBlur3D(sigma=sigma, device=device, in_channels=in_channels)
         
     def forward(self, vol, sigma):
         axes = [2, 3, 4]
@@ -87,7 +89,7 @@ class HessianTorch(nn.Module):
 
 
 class HessBlock(nn.Module):
-    def __init__(self, start_scale, device, act=nn.Sigmoid()): #start scale - experimentaly
+    def __init__(self, start_scale, device, act=nn.Sigmoid(), in_channels=1): #start scale - experimentaly
         super(HessBlock, self).__init__()
         
         self.device = device
@@ -101,7 +103,7 @@ class HessBlock(nn.Module):
             nn.Linear(10, 1, bias=True),
             act
         )
-        self.hess = HessianTorch(self.scale, device)
+        self.hess = HessianTorch(self.scale, device, in_channels=in_channels)
         self.flat = nn.Flatten(start_dim=1, end_dim=4)
         
         
@@ -129,7 +131,7 @@ def nn_detect(vol, scale, l_func, device='cpu'):
 
     
 class HessNet(nn.Module):
-    def __init__(self, start_scale, device, channel_coef=4):
+    def __init__(self, start_scale, device):
         super(HessNet, self).__init__()
         
         
@@ -193,12 +195,10 @@ class HessNet2(nn.Module):
             nn.Conv3d(in_channels=4, out_channels=4, kernel_size=3, stride=1,
                       padding=1, dilation=1, padding_mode="reflect"))
         
-        
-        self.inter_block = nn.Sequential(
-            nn.Conv3d(in_channels=9, out_channels=5, kernel_size=5, stride=1,
-                      padding=2, dilation=1, padding_mode="reflect"),
-            nn.ReLU())
-        
+        # self.inter_block = nn.Sequential(
+        #     nn.Conv3d(in_channels=9, out_channels=5, kernel_size=5, stride=1,
+        #               padding=2, dilation=1, padding_mode="reflect"),
+        #     nn.ReLU())
         
         self.out_block = nn.Sequential(
             nn.Conv3d(in_channels=5, out_channels=1, kernel_size=5, stride=1,
