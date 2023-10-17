@@ -36,6 +36,7 @@ class VG_Controller:
         self.generator_loss_fn = losses["generator_loss_fn"]
         self.cycle_lambda = losses["cycle_lambda"]
         self.identity_lambda = losses["identity_lambda"]
+        self.reg_lambda = losses["reg_lambda"]
         
         self.epoch = 0
         self.history = None
@@ -88,6 +89,7 @@ class VG_Controller:
         disc_S_losses = []
         segmentation_losses = []
         reconstruction_losses = []
+        reg_losses = []
         
         for patches_batch in tqdm(train_dataloader):
             real_I = patches_batch['head']['data'].float().to(self.device)  
@@ -99,7 +101,8 @@ class VG_Controller:
             # ----------------
             self.model.gen_IS.train()
             self.model.gen_SI.train()
-            
+            self.model.disc_S.eval()
+            self.model.disc_I.eval()
             ###GAN Loss
             fake_S = self.model.gen_IS(real_I)
             fake_I = self.model.gen_SI(real_S)
@@ -131,8 +134,14 @@ class VG_Controller:
             else:
                 supervised_loss = 0
             
+            ###
+            #reg_loss = torch.pow(fake_S * (1-fake_S), 0.5).mean()
+            reg_loss = (torch.log(fake_S+1) * torch.log(2-fake_S)).mean()
+            #print(reg_loss)
+            ###
             GEN_Loss = loss_GAN + self.cycle_lambda * loss_cycle +\
-                       self.identity_lambda * loss_identity + supervised_loss
+                       self.identity_lambda * loss_identity + supervised_loss +\
+                       self.reg_lambda * reg_loss
             
             self.gen_IS_opt.zero_grad()
             self.gen_SI_opt.zero_grad()
@@ -142,12 +151,12 @@ class VG_Controller:
             self.gen_IS_opt.step()
             self.gen_SI_opt.step()
             
-            self.model.gen_IS.eval()
-            self.model.gen_SI.eval()
             
             # --------------------
             # Train Discriminators
             # --------------------
+            self.model.gen_IS.eval()
+            self.model.gen_SI.eval()
             self.model.disc_S.train()
             self.model.disc_I.train()
             
@@ -178,7 +187,7 @@ class VG_Controller:
             disc_S_losses.append(disc_S_loss.item())
             segmentation_losses.append(segmentation_loss.item())
             reconstruction_losses.append(reconstruction_loss.item())
-       
+            reg_losses.append(reg_loss.item())
             self.model.disc_S.eval()
             self.model.disc_I.eval()
     
@@ -196,6 +205,7 @@ class VG_Controller:
                 'disc_S_loss': round(sum(disc_S_losses)/len(disc_S_losses), 4),
                 'segmentation_loss': round(sum(segmentation_losses)/len(segmentation_losses), 4),
                 'reconstruction_loss': round(sum(reconstruction_losses)/len(reconstruction_losses), 4),
+                'reg_loss': round(sum(reg_losses)/len(reg_losses), 4),
                }
         return out
     
@@ -223,8 +233,8 @@ class VG_Controller:
                 patch_seg = self.model.gen_IS(head_patches)
                 grid_aggregator.add_batch(patch_seg.cpu(), patch_locations)
         seg = grid_aggregator.get_output_tensor()
-        seg[seg<thresh]=0
-        seg[seg>0]=1
+        #seg[seg<thresh]=0
+        #seg[seg>0]=1
         return(seg)
     
     

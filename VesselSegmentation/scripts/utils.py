@@ -3,6 +3,16 @@ import sys
 import os
 from time import time, sleep
 import matplotlib.pyplot as plt
+import re
+
+
+def get_path(path, key="head"):
+    names = os.listdir(path)
+    for name in names:
+        m = re.search(key, name)
+        if m:
+            return(path + '/' + name)
+
 
 def print_img(vol, axis, slice_=None, title= 'title', cmap='hot', bar=True, ticks=True, minmax=(None, None)):
     axis.set_title(title)
@@ -11,7 +21,8 @@ def print_img(vol, axis, slice_=None, title= 'title', cmap='hot', bar=True, tick
         plt.colorbar(im)
     if not ticks:
         axis.axis('off')
-    
+
+
 def print_imgs(list_imgs, slice_n=None, size=(5, 4)):
     N = len(list_imgs)
     fig, ax = plt.subplots(1, N, figsize=(N*size[0], size[1]))

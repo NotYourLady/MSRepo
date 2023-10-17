@@ -8,7 +8,7 @@ import re
 
 class DataProcessor:
     def __init__(self, aug_coef=2, resample=None):
-                
+        intepolate = 'lanczos' # 'bspline'   
         transforms = [
             #tio.transforms.RescaleIntensity(out_min_max=(0, 1), percentiles=(0.5, 99.5)),
             tio.transforms.ZNormalization(),
@@ -16,16 +16,20 @@ class DataProcessor:
         
         aug_transforms = [
             #tio.transforms.RandomBiasField(0.1),
-            tio.transforms.RandomGamma(),
-            tio.transforms.RandomElasticDeformation(num_control_points=7, max_displacement=7.5),
+            tio.transforms.RandomGamma((-0.07, 0.07)),
+            tio.transforms.RandomElasticDeformation(num_control_points=7,
+                                                    max_displacement=7.5,
+                                                    image_interpolation=intepolate),
             #tio.transforms.RescaleIntensity(out_min_max=(0, 1), percentiles=(0.5, 99.5)),
             tio.transforms.ZNormalization(),
             ]
         if resample is not None:
-            transforms = [tio.transforms.Resample(target=resample, image_interpolation='bspline',
-                                    label_interpolation= 'linear'),] + transforms
-            aug_transforms = [tio.transforms.Resample(target=resample, image_interpolation='bspline',
-                                    label_interpolation= 'linear'),] + aug_transforms
+            transforms = [tio.transforms.Resample(target=resample,
+                                                  image_interpolation=intepolate,
+                                                  label_interpolation=intepolate),] + transforms
+            aug_transforms = [tio.transforms.Resample(target=resample,
+                                                      image_interpolation=intepolate,
+                                                      label_interpolation=intepolate),] + aug_transforms
         
         self.transform = tio.Compose(transforms)
         self.aug_transform = tio.Compose(aug_transforms)
@@ -78,10 +82,10 @@ class DataProcessor:
                     subject_dict.update({'vessels': tio.LabelMap(get_path(p, "vessels"))})
                 subject = tio.Subject(subject_dict)
                 subjects_list += (subject,)
-        print(subjects_list)
+        #print(subjects_list)
         
         processed_subjects_list = []
-        for subject in subjects_list:
+        for subject in tqdm(subjects_list):
             for i in range(self.aug_coef):
                 if i==0: #without transforms
                     subject = self.transform(subject)

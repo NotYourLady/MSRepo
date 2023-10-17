@@ -18,7 +18,11 @@ class Controller:
         self.model = config['model']
         self.model.to(self.device)
         #self.model.to_device(self.device)
-        self.history = None
+        self.history = {
+            'train_loss': [],
+            'val_loss': [],
+            "test_quality": [],
+        }
         
         self.opt_fn = config.get('optimizer_fn', None)
         self.sheduler_fn = config.get('sheduler_fn', None)
@@ -37,11 +41,6 @@ class Controller:
         if self.sheduler is None:
             self.sheduler = self.sheduler_fn(self.optimizer)
         
-        self.history = {
-            'train_loss': [],
-            'val_loss': [],
-            "test_quality": [],
-        }
         start_epoch = self.epoch
         for epoch in range(start_epoch, start_epoch+n_epochs):
             self.epoch += 1

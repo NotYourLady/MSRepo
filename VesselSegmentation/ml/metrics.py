@@ -139,8 +139,8 @@ class CycleLoss:
                                                       freq=0.1, lamb=0.5, tversky_alfa=0.5)
             
     def __call__(self, real, fake):
-        real = minimax_norm(real)
-        fake = minimax_norm(fake)
+        #real = minimax_norm(real)
+        #fake = minimax_norm(fake)
         return self.loss_fn(real, fake)
 
 
@@ -160,8 +160,11 @@ class DiscriminatorLoss:
         self.afpha = 0.5
 
     def __call__(self, real, fake):
-        #print("real:", real.mean() )
-        #print("fake:", fake.mean() )
+        #print("real:", real )
+        #print("fake:", fake )
+        #print(self.afpha * self.loss_fn(torch.ones_like(real), real) +\
+        #       (1 - self.afpha) * self.loss_fn(torch.zeros_like(fake), fake))
+        
         return self.afpha * self.loss_fn(torch.ones_like(real), real) +\
                (1 - self.afpha) * self.loss_fn(torch.zeros_like(fake), fake)
 
@@ -201,9 +204,6 @@ class soft_dice_cldice(nn.Module):
         return self.alpha*self.cldice(y_true, y_pred) + (1-self.alpha)*self.cldice(y_true, y_pred)
 
 
-    
-    
-    
     
 class MIP_tool():
     def __init__(self, eps=1e-8):

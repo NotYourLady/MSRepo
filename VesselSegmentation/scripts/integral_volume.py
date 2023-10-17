@@ -7,7 +7,13 @@ class Point3d:
         self.x = x
         self.y = y
         self.z = z
-       
+    
+    def edit_to_shape(self, shape):
+        self.x = min(max(self.x, 0), shape[0]-1)
+        self.y = min(max(self.y, 0), shape[1]-1)
+        self.z = min(max(self.z, 0), shape[2]-1)
+        return(self)
+    
     def edit_to_vol(self, vol):
         self.x = min(max(self.x, 0), vol.shape[0]-1)
         self.y = min(max(self.y, 0), vol.shape[1]-1)

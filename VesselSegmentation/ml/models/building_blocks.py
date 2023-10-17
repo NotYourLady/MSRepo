@@ -14,16 +14,14 @@ def NormLayer3d(c, mode='batch'):
         return nn.BatchNorm3d(c)
 
 
-class NoiseInjection3d(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.weight = nn.Parameter(0.0001*torch.ones(1), requires_grad=True)
-        #self.weight = nn.Parameter(0.01*torch.ones(1), requires_grad=False)
-
-    def forward(self, x, noise=None):
-        if noise is None:
-            batch_size, _, h, w, d = x.shape
-            noise = torch.randn(batch_size, 1, h, w, d, requires_grad=True).to(x.device)
+class NoiseInjection3d(nn.Module):    
+    def __init__(self, alpha=0.1, requires_grad=True):
+        super(NoiseInjection3d, self).__init__()
+        self.weight = nn.Parameter(alpha*torch.ones(1), requires_grad=requires_grad)
+        
+    def forward(self, x):
+        batch_size, _, h, w, d = x.shape
+        noise = torch.randn(batch_size, 1, h, w, d, requires_grad=True).to(x.device)
         return x + self.weight * noise        
 
 
@@ -257,9 +255,11 @@ class VG_discriminator(nn.Module):
             downsample(2*channels_coef, 4*channels_coef, kernel_size=4, input_noise=use_layer_noise,
                        stride=2, padding=1, act=nn.PReLU()),
             downsample(4*channels_coef, 8*channels_coef, kernel_size=4, input_noise=use_layer_noise,
+                       stride=2, padding=1, act=nn.PReLU()),
+            downsample(8*channels_coef, 16*channels_coef, kernel_size=4, input_noise=use_layer_noise,
                        stride=2, padding=1, act=nn.PReLU())
         )
-        self.conv2 = nn.Conv3d(in_channels=8*channels_coef, out_channels=1,
+        self.conv2 = nn.Conv3d(in_channels=16*channels_coef, out_channels=1,
                                kernel_size=1, stride=1, padding=0)
     
     def forward(self, x):
@@ -267,8 +267,7 @@ class VG_discriminator(nn.Module):
         
         x = self.conv1(x)
         x = self.norm(x)
-        x = self.act(x)
-        
+        x = self.act(x)        
         x = self.downsample(x)
         x = self.conv2(x)
         x = torch.sigmoid(x)
