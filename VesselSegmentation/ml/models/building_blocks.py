@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 from torch.nn.utils import spectral_norm
 
-from activates import swish, norm_act, GLU
-from utils import check_None
+from ml.models.activates import swish, norm_act, GLU
+from ml.utils import check_None
 
 check_None_now = check_None
 
