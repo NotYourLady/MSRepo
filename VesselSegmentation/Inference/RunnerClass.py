@@ -5,7 +5,7 @@ import torchio as tio
 from ml.ControllerClass import Controller
 from ml.SampleClass import Sample
 from ml.models.HessNet import HessBlock, HessNet, HessNet2, GaussianBlur3D, HessianTorch
-from ml.models.unet3d import U_Net3d, U_HessNet, ParallelNet
+from ml.models.unet3d import U_Net, U_HessNet, ParallelNet
 from ml.models.unet2d import U_Net2d
 from scripts.load_and_save import save_vol_as_nii
 from scripts.utils import get_path
@@ -16,21 +16,20 @@ class Runner:
         self.settings = settings
         self.device = settings['device']
         self.model_name = settings['model']
-        self.controller_dict = {'device' : self.device}
-        self.model = self.get_model()
-        self.controller_dict.update({"model" : self.model})
+        self.controller_dict = {'device' : self.device,
+                                'is2d' : settings.get('is2d', False)}
+        self.get_model()
         self.controller = Controller(self.controller_dict)
-        self.controller.load(path_to_checkpoint=f"{settings['path_to_pretrained_models']}/{self.model_name}")
+        self.controller.load(path_to_checkpoint=f"{settings['path_to_pretrained_models']}/{self.model_name}_{settings['test_name']}")
 
 
     def get_model(self):
         if self.model_name == 'Unet3d_16ch':
-            return(U_Net3d(channels=16))
+            self.controller_dict.update({'model' : U_Net(channels=16)})
         if self.model_name == 'Unet2d_16ch':
-            self.controller_dict.update({'is2d' : True})
-            return(U_Net2d(channels=16))
+            self.controller_dict.update({'model' : U_Net2d(channels=16)})
         elif self.model_name == 'HessNet':
-            return(HessNet(start_scale=[0.8], device=self.device))
+            self.controller_dict.update({'model' : HessNet(start_scale=[0.8], device=self.device)})
 
     
     def run_sample(self, sample : Sample):
@@ -38,7 +37,6 @@ class Runner:
         if self.settings.get('normalization'):
             if self.settings['normalization'] == 'Z-norm':
                 subject = tio.transforms.ZNormalization()(subject)
-        
         if self.controller_dict['is2d']:
             predict_settings = {
              "patch_shape" : (512, 512, 1),

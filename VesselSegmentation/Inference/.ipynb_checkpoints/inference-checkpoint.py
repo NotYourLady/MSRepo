@@ -19,11 +19,11 @@ def main(settings):
         avg_metrics.update({m : []})
         avg_metrics_mask.update({m : []})
     
-    sample_names = []
-    for name in os.listdir(path_to_data):
-        if not os.path.isfile(f"{path_to_data}/{name}"):
-            sample_names.append(name)
-            
+    fp = open(f"{settings['path_to_data']}/testing_info.json")
+    test_settings = json.load(fp)
+    fp.close()
+    sample_names = test_settings[settings['test_name']]['test']
+        
     for sample_name in tqdm(sample_names):
         print(f"process {sample_name}...")
         sample = Sample(f"{path_to_data}/{sample_name}")
@@ -44,14 +44,34 @@ def main(settings):
     
     print("avg_metrics:", avg_metrics)
     print("avg_metrics_mask:", avg_metrics_mask)
-    
-    fp1 = open(f"{path_to_data}/avg_metrics_{settings['model']}.json", 'w')
-    json.dump(avg_metrics, sort_keys=True, indent=4, fp=fp1)
-    fp1.close()
-    
-    fp2 = open(f"{path_to_data}/avg_metrics_mask_{settings['model']}.json", 'w')
-    json.dump(avg_metrics_mask, sort_keys=True, indent=4, fp=fp2)
-    fp2.close()
+
+
+    test_dict = {
+            settings['model']: {
+                settings['test_name']: {
+                    "avg_metrics" : avg_metrics,
+                    "avg_metrics_mask" : avg_metrics_mask
+                }   
+            }
+        }
+    if not os.path.exists(f"{path_to_data}/out"):
+        os.mkdir(f"{path_to_data}/out")
+    path_to_out = f"{path_to_data}/out/avg_metrics.json"
+            
+    if os.path.exists(path_to_out):
+        fp = open(path_to_out, 'r+')
+        prev_dict = json.load(fp)
+        if prev_dict.get(settings['model']):
+            prev_dict[settings['model']].update(test_dict[settings['model']])
+        else:
+            prev_dict.update(test_dict)
+        fp.seek(0)
+        json.dump(prev_dict, sort_keys=True, indent=4, fp=fp)
+        fp.truncate() 
+    else:
+        fp = open(path_to_out, 'w')
+        json.dump(test_dict, sort_keys=True, indent=4, fp=fp)
+        fp.close() 
 
 
 if __name__ == '__main__':
