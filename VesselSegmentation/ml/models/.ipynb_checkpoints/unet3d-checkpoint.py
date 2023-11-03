@@ -48,6 +48,7 @@ class up_conv(nn.Module):
         return x
 
 
+#class U_Net3d(nn.Module):
 class U_Net(nn.Module):
     """
     UNet - Basic Implementation

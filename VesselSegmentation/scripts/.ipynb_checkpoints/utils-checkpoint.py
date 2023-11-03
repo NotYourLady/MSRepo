@@ -7,11 +7,16 @@ import re
 
 
 def get_path(path, key="head"):
+    out = []
     names = os.listdir(path)
     for name in names:
         m = re.search(key, name)
         if m:
-            return(path + '/' + name)
+            out.append(f"{path}/{name}")
+    
+    if len(out)==1:
+        return(out[0])
+    return(out)
 
 
 def print_img(vol, axis, slice_=None, title= 'title', cmap='hot', bar=True, ticks=True, minmax=(None, None)):

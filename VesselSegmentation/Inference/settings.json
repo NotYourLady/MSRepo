@@ -1,0 +1,9 @@
+{
+    "path_to_data" : "/home/msst/Documents/medtech/data/Inference_IXI",
+    "path_to_pretrained_models": "/home/msst/save_folder/pretrained_models",
+    "path_to_EvaluateSegmentation" : "/home/msst/repo/MSRepo/VesselSegmentation/Inference/EvaluateSegmentation",
+    "device" : "cuda",
+    "model" : "Unet2d_16ch",
+    "normalization" : "Z-norm",
+    "metrics": ["DICE", "AVGDIST", "SNSVTY"]
+}

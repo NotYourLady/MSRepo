@@ -56,12 +56,15 @@ class TioDataset(Dataset):
         subjects_list = []
         for dirname, dirnames, filenames in os.walk(path_to_data):
             for subdirname in dirnames:
+                #print(dirnames, subdirname)
                 p = os.path.join(dirname, subdirname)
                 subject_dict = {"sample_name" : subdirname}
                 if os.path.exists(p + '/head.nii.gz'):
                     subject_dict.update({'head': tio.ScalarImage(p + '/head.nii.gz')})
                 if os.path.exists(p + '/vessels.nii.gz'):
                     subject_dict.update({'vessels': tio.LabelMap(p + '/vessels.nii.gz')})
+                if os.path.exists(p + '/brain.nii.gz'):
+                    subject_dict.update({'brain': tio.LabelMap(p + '/brain.nii.gz')})    
                 subject = tio.Subject(subject_dict)
                 if data_type=='train' and self.train_settings["sampler"]=="weighted":
                     self.add_prob_map(subject)

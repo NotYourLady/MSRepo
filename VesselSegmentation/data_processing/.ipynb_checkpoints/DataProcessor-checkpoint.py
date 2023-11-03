@@ -8,7 +8,7 @@ import re
 
 class DataProcessor:
     def __init__(self, aug_coef=2, resample=None):
-        intepolate = 'lanczos' # 'bspline'   
+        intepolate = "hamming"#'lanczos' # 'bspline'   
         transforms = [
             #tio.transforms.RescaleIntensity(out_min_max=(0, 1), percentiles=(0.5, 99.5)),
             tio.transforms.ZNormalization(),
@@ -59,7 +59,9 @@ class DataProcessor:
         if 'vessels' in subject.keys():
             self.remove_affine_shift(subject.vessels.affine)
             subject.vessels.save(path+"/vessels.nii.gz")
-    
+        if 'brain' in subject.keys():
+            self.remove_affine_shift(subject.brain.affine)
+            subject.brain.save(path+"/brain.nii.gz")
     
     def __call__(self, raw_data_path, processed_data_path):
         def get_path(path, key="head"):
@@ -80,6 +82,8 @@ class DataProcessor:
                     subject_dict.update({'head': tio.ScalarImage(get_path(p, "head"))})
                 if get_path(p, "vessels"):
                     subject_dict.update({'vessels': tio.LabelMap(get_path(p, "vessels"))})
+                if get_path(p, "brain"):
+                    subject_dict.update({'brain': tio.LabelMap(get_path(p, "brain"))})
                 subject = tio.Subject(subject_dict)
                 subjects_list += (subject,)
         #print(subjects_list)
