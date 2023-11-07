@@ -133,10 +133,14 @@ class HessBlock(nn.Module):
         super(HessBlock, self).__init__()
         
         self.device = device
-        start_scale = torch.tensor(start_scale*1, dtype=torch.float32, device=device)
-        if start_scale.shape == torch.Size([]):
-            start_scale = start_scale.unsqueeze(0)
-        self.scale = nn.parameter.Parameter(data=start_scale)
+        if type(start_scale) != torch.Tensor:
+            scale = torch.tensor(start_scale*1, dtype=torch.float32, device=device)
+        else:
+            scale = start_scale.clone().to(device)
+            
+        if scale.shape == torch.Size([]):
+            scale = scale.unsqueeze(0)
+        self.scale = nn.parameter.Parameter(data=scale)
         
         self.linear = nn.Sequential(
             nn.Linear(7+self.scale.shape[0], fc_channels, bias=True),
@@ -203,132 +207,182 @@ class HessNet(nn.Module):
         self.H4.hess.gauss.device = device
         
         
-        
-class HessNet2(nn.Module):
-    def __init__(self, start_scale, device, channel_coef=4):
-        super(HessNet2, self).__init__()
-        
-        
-        self.device = device
-        
-        self.H1 = HessBlock(start_scale=start_scale, device=device,
-                            act=nn.Sigmoid(), in_channels=3)
-        self.H2 = HessBlock(start_scale=start_scale, device=device,
-                            act=nn.Sigmoid(), in_channels=3)
-        self.H3 = HessBlock(start_scale=start_scale, device=device,
-                            act=nn.Sigmoid(), in_channels=6)
-        self.H4 = HessBlock(start_scale=start_scale, device=device,
-                            act=nn.Sigmoid(), in_channels=6)
-
-        
-        self.input_block = nn.Sequential(
-            ConvBlock(in_channels=1, out_channels=3),
-            nn.Conv3d(in_channels=3, out_channels=3, kernel_size=3, stride=1,
-                      padding=1, dilation=1, padding_mode="reflect"))
-
-        self.inter_block = nn.Sequential(
-            nn.Conv3d(in_channels=6, out_channels=6, kernel_size=3, stride=1,
-                      padding=1, dilation=1, padding_mode="reflect"),
-            nn.ReLU())
-    
-        self.out_block = nn.Sequential(
-            ConvBlock(in_channels=10, out_channels=5),
-            nn.Conv3d(in_channels=5, out_channels=1, kernel_size=3, stride=1,
-                      padding=1, dilation=1, padding_mode="reflect"),
-            nn.Sigmoid())
-    
-
-    def forward(self, x_input):
-        x_proc = self.input_block(x_input)
-        h1 = self.H1(x_proc)
-        h2 = self.H2(x_proc)
-        H = torch.max(torch.cat([h1.unsqueeze(0),
-                                 h2.unsqueeze(0)], axis=0), axis=0).values
-
-        x = torch.cat([x_proc, H], 1) #6 ch
-        x = self.inter_block(x) #6ch
-        
-        h3 = self.H3(x) 
-        h4 = self.H4(x)
-        H = torch.max(torch.cat([h3.unsqueeze(0),
-                                 h4.unsqueeze(0)], axis=0), axis=0).values
-        
-        x = torch.cat([x_input, x_proc, H], 1) #10ch
-        
-        out = self.out_block(x)
-        return(out)
-    
-
-    
 class HessFeatures(nn.Module):
-    def __init__(self, start_scale, device, out_act=nn.Sigmoid()):
-        super(HessFeatures, self).__init__()
-        
+    def __init__(self, start_scale, device, out_act=nn.Sigmoid(), in_channels=1, n_hess_blocks=4):
+        super(HessFeatures, self).__init__()    
         self.device = device
-        self.H1 = HessBlock(start_scale=[0.5], device=device, act=nn.ReLU())
-        self.H2 = HessBlock(start_scale=[1.0], device=device, act=nn.ReLU())
-        self.H3 = HessBlock(start_scale=[1.5], device=device, act=nn.ReLU())
-        self.H4 = HessBlock(start_scale=[2.0], device=device, act=nn.ReLU())
-
+        
+        self.HessBlocks = nn.ModuleList([])
+        for i in range(n_hess_blocks):
+            self.HessBlocks.append(HessBlock(start_scale=(0.5+i/2)*torch.tensor(start_scale),
+                                            device=device, act=nn.ReLU(),
+                                            in_channels=in_channels))
+        
     def forward(self, x):
-        h1 = self.H1(x)
-        h2 = self.H2(x)
-        h3 = self.H3(x)
-        h4 = self.H4(x)
-        out = torch.cat([x, h1, h2, h3, h4], 1)
+        h = []
+        for HessBlock in self.HessBlocks:
+            h.append(HessBlock(x))     
+        out = torch.cat(h, 1)
         return(out)
-    
-    
     
     def to_device(self, device):
         self.to(device)
+        for HessBlock in self.HessBlocks:
+            HessBlock.device = device
         
-        self.H1.device = device
-        self.H2.device = device
-        self.H3.device = device
-        self.H4.device = device
-        
-        self.H1.hess.gauss.device = device
-        self.H2.hess.gauss.device = device
-        self.H3.hess.gauss.device = device
-        self.H4.hess.gauss.device = device
+        for HessBlock in self.HessBlocks:
+            HessBlock.hess.gauss.device = device       
 
+            
+class conv_block(nn.Module):
+    """
+    Convolution Block
+    """
 
-class HessFeatures2(nn.Module):
-    def __init__(self, start_scale, device, out_channels = 5, out_act=nn.Sigmoid()):
-        super(HessFeatures2, self).__init__()
-        
-        self.device = device
-        self.H1 = HessBlock(start_scale=[0.5], device=device, act=nn.ReLU())
-        self.H2 = HessBlock(start_scale=[1.0], device=device, act=nn.ReLU())
-        self.H3 = HessBlock(start_scale=[1.5], device=device, act=nn.ReLU())
-        self.H4 = HessBlock(start_scale=[2.0], device=device, act=nn.ReLU())
-        
-        self.out_block = nn.Sequential(
-            nn.Conv3d(in_channels=5, out_channels=out_channels, kernel_size=5, stride=1,
-                      padding=2, dilation=1, padding_mode="reflect"),
-            out_act)
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1,
+                 padding=1, bias=True, act_fn=nn.ReLU(inplace=True)):
+        super(conv_block, self).__init__()
+        self.conv = nn.Sequential(
+            nn.Conv3d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,
+                      stride=stride, padding=padding, bias=bias),
+            nn.BatchNorm3d(num_features=out_channels),
+            act_fn,
+            nn.Conv3d(in_channels=out_channels, out_channels=out_channels, kernel_size=kernel_size,
+                      stride=stride, padding=padding, bias=bias),
+            nn.BatchNorm3d(num_features=out_channels),
+            act_fn
+        )
 
     def forward(self, x):
-        h1 = self.H1(x)
-        h2 = self.H2(x)
-        h3 = self.H3(x)
-        h4 = self.H4(x)
-        out = torch.cat([x, h1, h2, h3, h4], 1)
-        out = self.out_block(out)
-        return(out)
-    
-    
-    
-    def to_device(self, device):
-        self.to(device)
+        x = self.conv(x)
+        return x
+
+
+class up_conv(nn.Module):
+    """
+    Up Convolution Block
+    """
+
+    # def __init__(self, in_ch, out_ch):
+    def __init__(self, in_channels, out_channels, k_size=3, stride=1,
+                 padding=1, bias=True, act_fn=nn.ReLU(inplace=True)):
+        super(up_conv, self).__init__()
+        self.up = nn.Sequential(
+            nn.Upsample(scale_factor=2),
+            nn.Conv3d(in_channels=in_channels, out_channels=out_channels, kernel_size=k_size,
+                      stride=stride, padding=padding, bias=bias),
+            nn.BatchNorm3d(num_features=out_channels),
+            act_fn)
+
+    def forward(self, x):
+        x = self.up(x)
+        return x            
+            
+
+class HessUNet(nn.Module):
+    def __init__(self, in_channels=1, out_channels=1, channels=16,
+                 act=nn.Sigmoid(), depth=3, device='cuda'):
+        super(HessUNet, self).__init__()
         
-        self.H1.device = device
-        self.H2.device = device
-        self.H3.device = device
-        self.H4.device = device
+        self.depth = depth
         
-        self.H1.hess.gauss.device = device
-        self.H2.hess.gauss.device = device
-        self.H3.hess.gauss.device = device
-        self.H4.hess.gauss.device = device
+        filters = [in_channels,]
+        for i in range(depth+1):
+            filters.append(channels * (2**i))
+        
+        self.Pools = nn.ModuleList([])
+        self.Convs = nn.ModuleList([])
+        self.UpConvs = nn.ModuleList([])
+        self.Ups = nn.ModuleList([])
+
+        for i in range(1, depth+1):
+            self.Pools.append(nn.MaxPool3d(kernel_size=2, stride=2))
+            self.Convs.append(conv_block(filters[i], filters[i+1]))
+            self.UpConvs.append(conv_block(filters[i+1], filters[i]))
+            self.Ups.append(up_conv(filters[i+1], filters[i]))
+
+        
+        N_hess_blocks=4
+        self.HessFeatures = HessFeatures(start_scale=torch.tensor([0.8, 0.8, 1.2]), device=device,
+                                         out_act=nn.ReLU(), n_hess_blocks=N_hess_blocks,
+                                         in_channels=in_channels)
+        self.inConv = conv_block(filters[0], filters[1]-N_hess_blocks)
+        
+        #self.inConv = conv_block(filters[0], filters[1])
+        self.outConv = nn.Conv3d(channels, out_channels, kernel_size=1, stride=1, padding=0)
+        self.act = act
+        
+    def forward(self, x):
+        down_features = []    
+        
+        down_features.append(torch.cat((self.HessFeatures(x), self.inConv(x)), dim=1))
+        #down_features.append(self.inConv(x))
+        
+        for i in range(self.depth):
+            down_features.append(self.Convs[i](self.Pools[i](down_features[i])))
+
+        for i in reversed(range(self.depth)):
+            x = self.Ups[i](down_features[i+1])
+            x = torch.cat((down_features[i], x), dim=1)
+            x = self.UpConvs[i](x)
+
+        out = self.outConv(x)
+        out = self.act(out)
+        return out
+    
+
+class HessUNet2(nn.Module):
+    def __init__(self, in_channels=1, out_channels=1, channels=16,
+                 act=nn.Sigmoid(), depth=3, device='cuda'):
+        super(HessUNet2, self).__init__()
+        
+        self.depth = depth
+        
+        filters = [in_channels,]
+        for i in range(depth+1):
+            filters.append(channels * (2**i))
+        
+        self.Pools = nn.ModuleList([])
+        self.Convs = nn.ModuleList([])
+        self.UpConvs = nn.ModuleList([])
+        self.Ups = nn.ModuleList([])
+
+        for i in range(1, depth+1):
+            self.Pools.append(nn.MaxPool3d(kernel_size=2, stride=2))
+            self.Convs.append(conv_block(filters[i], filters[i+1]))
+            self.UpConvs.append(conv_block(filters[i+1], filters[i]))
+            self.Ups.append(up_conv(filters[i+1], filters[i]))
+
+        
+        N_hess_blocks=4
+        self.HessFeatures_in = HessFeatures(start_scale=torch.tensor([0.8, 0.8, 1.2]), device=device,
+                                         out_act=nn.ReLU(), n_hess_blocks=N_hess_blocks,
+                                         in_channels=in_channels)
+        self.HessFeatures_out = HessFeatures(start_scale=torch.tensor([0.8, 0.8, 1.2]), device=device,
+                                         out_act=nn.ReLU(), n_hess_blocks=N_hess_blocks,
+                                         in_channels=out_channels)
+        
+        self.inConv = conv_block(filters[0], filters[1]-N_hess_blocks)
+        self.outConv1 = nn.Conv3d(channels, out_channels, kernel_size=3, stride=1, padding=1)
+        self.outConv2 = nn.Conv3d(out_channels+N_hess_blocks, out_channels,
+                                  kernel_size=5, stride=1, padding=2)
+        self.act = act
+        
+    def forward(self, x):
+        down_features = []    
+        down_features.append(torch.cat([self.HessFeatures_in(x), self.inConv(x)], dim=1))
+        
+        for i in range(self.depth):
+            down_features.append(self.Convs[i](self.Pools[i](down_features[i])))
+
+        for i in reversed(range(self.depth)):
+            x = self.Ups[i](down_features[i+1])
+            x = torch.cat((down_features[i], x), dim=1)
+            x = self.UpConvs[i](x)
+
+        out = self.outConv1(x)     
+        out = torch.cat([self.HessFeatures_out(out), out], dim=1)
+        out = self.outConv2(out)
+        out = self.act(out)
+        return out
+    

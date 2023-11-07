@@ -2,11 +2,9 @@ import os
 import re
 import subprocess
 import torchio as tio
+from ml.get_model import get_model
 from ml.ControllerClass import Controller
 from ml.SampleClass import Sample
-from ml.models.HessNet import HessBlock, HessNet, HessNet2, GaussianBlur3D, HessianTorch
-from ml.models.unet3d import U_Net, U_HessNet, ParallelNet
-from ml.models.unet2d import U_Net2d
 from scripts.load_and_save import save_vol_as_nii
 from scripts.utils import get_path
 
@@ -24,13 +22,7 @@ class Runner:
 
 
     def get_model(self):
-        if self.model_name == 'Unet3d_16ch':
-            self.controller_dict.update({'model' : U_Net(channels=16)})
-        if self.model_name == 'Unet2d_16ch':
-            self.controller_dict.update({'model' : U_Net2d(channels=16)})
-        elif self.model_name == 'HessNet':
-            self.controller_dict.update({'model' : HessNet(start_scale=[0.8], device=self.device)})
-
+            self.controller_dict.update({'model' : get_model(self.model_name)})
     
     def run_sample(self, sample : Sample):
         subject = sample.get_subject()

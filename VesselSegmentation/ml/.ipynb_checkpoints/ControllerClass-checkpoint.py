@@ -1,13 +1,10 @@
 from typing import Dict
 import os
 import copy
-from numpy import asarray
 from tqdm import tqdm
 import torch
-from torch.nn import CrossEntropyLoss
 import torchio as tio
 
-import matplotlib.pyplot as plt
 
 class Controller:
     def __init__(self, config: Dict):
@@ -190,6 +187,12 @@ class Controller:
         seg = self.fast_predict(patch_loader, grid_aggregator)
         return(seg)
           
+    
+    def save_weights(self, path: str):
+        if self.model is None:
+            raise RuntimeError("Need a model")
+        torch.save(self.model.state_dict(), path)
+    
     
     def save(self, path: str):
         if self.model is None:

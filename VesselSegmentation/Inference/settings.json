@@ -3,7 +3,7 @@
     "path_to_pretrained_models": "/home/msst/save_folder/models_for_tests",
     "path_to_EvaluateSegmentation" : "/home/msst/repo/MSRepo/VesselSegmentation/Inference/EvaluateSegmentation",
     "device" : "cuda",
-    "model" : "HessNet",
+    "model" : "Unet3d_16ch",
     "is2d" : false,
     "test_name": "test1",
     "normalization" : "Z-norm",
