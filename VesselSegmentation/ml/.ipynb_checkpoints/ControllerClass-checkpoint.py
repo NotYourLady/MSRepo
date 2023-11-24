@@ -39,7 +39,8 @@ class Controller:
         if self.optimizer is None:
             self.optimizer = self.opt_fn(self.model)
         if self.sheduler is None:
-            self.sheduler = self.sheduler_fn(self.optimizer)
+            if self.sheduler_fn is not None:
+                self.sheduler = self.sheduler_fn(self.optimizer)
         
         start_epoch = self.epoch
         for epoch in range(start_epoch, start_epoch+n_epochs):

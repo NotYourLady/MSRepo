@@ -38,8 +38,8 @@ class Runner:
             }
         else:
             predict_settings = {
-             "patch_shape" : (256, 256, 64),
-             "overlap_shape" : (32, 32, 24),
+             "patch_shape" : (96, 96, 64),
+             "overlap_shape" : (16, 16, 16),
              "batch_size" : 1,
              "num_workers": 4,
             }   
