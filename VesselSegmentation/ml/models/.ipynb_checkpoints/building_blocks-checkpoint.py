@@ -7,6 +7,49 @@ from ml.utils import check_None
 
 check_None_now = check_None
 
+class ConvBlock(nn.Module):
+    def __init__(self, in_channels, out_channels,
+                 kernel_size=3, stride=1, dilation=1,
+                 padding_mode='reflect', act = nn.ReLU()):
+        super().__init__()
+        kernel_size_coef = (kernel_size-1)//2-1
+        self.conv = nn.Conv3d(in_channels=in_channels, out_channels=out_channels,
+                                 kernel_size=kernel_size, stride=stride,
+                                 padding=dilation+kernel_size_coef, dilation=dilation,
+                                 padding_mode=padding_mode)
+        
+        self.norm = torch.nn.InstanceNorm3d(out_channels, eps=1e-05,
+                                            momentum=0.1, affine=False,
+                                            track_running_stats=False)
+        self.act = act
+        
+    def forward(self, x):
+        return self.act(self.norm(self.conv(x)))
+
+
+
+class MultuScaleDilationConvBlock(nn.Module):
+    def __init__(self, in_channels=1, out_channels=8, stride=1, padding_mode='reflect'):
+        super().__init__()
+        
+        self.Block1 = ConvBlock(in_channels, out_channels//4, kernel_size=1,
+                                stride=stride, dilation=1, padding_mode=padding_mode)
+        self.Block2 = ConvBlock(in_channels, out_channels//4, kernel_size=3,
+                                stride=stride, dilation=1, padding_mode=padding_mode)
+        self.Block3 = ConvBlock(in_channels, out_channels//4, kernel_size=3,
+                                stride=stride, dilation=2, padding_mode=padding_mode)
+        self.Block4 = ConvBlock(in_channels, out_channels//4, kernel_size=3,
+                                stride=stride, dilation=4, padding_mode=padding_mode)
+
+
+    def forward(self, x):
+        x1 = self.Block1(x)
+        x2 = self.Block2(x)
+        x3 = self.Block3(x)
+        x4 = self.Block4(x)
+        return torch.cat((x1, x2, x3, x4), 1)
+
+
 def NormLayer3d(c, mode='batch'):
     if mode == 'group':
         return nn.GroupNorm(c//2, c)
