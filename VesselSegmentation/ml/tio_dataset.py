@@ -7,15 +7,18 @@ from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch.nn.functional as F
 
+from scripts.utils import get_path
 
 class TioDataset(Dataset):
     def __init__(self, data_dir,
                  train_settings=None,
                  val_settings=None,
-                 test_settings=None):
+                 test_settings=None,
+                 paths=None):
         
         super(Dataset, self).__init__()
         self.data_dir = data_dir
+        self.paths = paths
         self.train_settings = train_settings
         self.val_settings = val_settings
         self.test_settings = test_settings
@@ -42,31 +45,45 @@ class TioDataset(Dataset):
             
         
     def set_data(self, data_type):
-        if data_type=='train':
-            path_to_data = self.data_dir + "/train"
-        elif data_type=='val':
-            path_to_data = self.data_dir + "/val"
-        elif data_type=='test':
-            path_to_data = self.data_dir + "/test"
-        else:
-            raise RuntimeError("HeadDataset::set_data ERROR")
-
         subjects_list = []
-        for dirname, dirnames, filenames in os.walk(path_to_data):
-            for subdirname in dirnames:
-                #print(dirnames, subdirname)
-                p = os.path.join(dirname, subdirname)
-                subject_dict = {"sample_name" : subdirname}
-                if os.path.exists(p + '/head.nii.gz'):
-                    subject_dict.update({'head': tio.ScalarImage(p + '/head.nii.gz')})
-                if os.path.exists(p + '/vessels.nii.gz'):
-                    subject_dict.update({'vessels': tio.LabelMap(p + '/vessels.nii.gz')})
-                if os.path.exists(p + '/brain.nii.gz'):
-                    subject_dict.update({'brain': tio.LabelMap(p + '/brain.nii.gz')})    
+        if self.paths:
+            for p in self.paths[data_type]:
+                subject_dict = {"sample_name" : os.path.basename(p)}
+                if get_path(p, 'head'):
+                    subject_dict.update({'head': tio.ScalarImage(get_path(p, 'head'))})
+                if get_path(p, 'vessels'):
+                    subject_dict.update({'vessels': tio.LabelMap(get_path(p, 'vessels'))})
+                if get_path(p, 'brain'):
+                    subject_dict.update({'brain': tio.LabelMap(get_path(p, 'brain'))})    
                 subject = tio.Subject(subject_dict)
                 if data_type=='train' and self.train_settings["sampler"]=="weighted":
                     self.add_prob_map(subject)
-                subjects_list.append(subject)      
+                subjects_list.append(subject)
+        else:
+            if data_type=='train':
+                path_to_data = self.data_dir + "/train"
+            elif data_type=='val':
+                path_to_data = self.data_dir + "/val"
+            elif data_type=='test':
+                path_to_data = self.data_dir + "/test"
+            else:
+                raise RuntimeError("HeadDataset::set_data ERROR")
+    
+            for dirname, dirnames, filenames in os.walk(path_to_data):
+                for subdirname in dirnames:
+                    p = os.path.join(dirname, subdirname)
+                    subject_dict = {"sample_name" : subdirname}
+                    if get_path(p, 'head'):
+                        subject_dict.update({'head': tio.ScalarImage(get_path(p, 'head'))})
+                    if get_path(p, 'vessels'):
+                        subject_dict.update({'vessels': tio.LabelMap(get_path(p, 'vessels'))})
+                    if get_path(p, 'brain'):
+                        subject_dict.update({'brain': tio.LabelMap(get_path(p, 'brain'))})     
+                    subject = tio.Subject(subject_dict)
+                    if data_type=='train' and self.train_settings["sampler"]=="weighted":
+                        self.add_prob_map(subject)
+                    subjects_list.append(subject)
+        
         return(tio.SubjectsDataset(subjects_list))
 
 

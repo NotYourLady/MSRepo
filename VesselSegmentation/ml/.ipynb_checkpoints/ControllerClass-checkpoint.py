@@ -31,7 +31,7 @@ class Controller:
         self.loss_fn = config.get('loss', None)
         self.metric_fn = config.get('metric', None)
         self.is2d = config.get('is2d', False)
-        
+        self.stop_test_cout = config.get('early_stopping', None)
         
     def fit(self, dataset, n_epochs, brain_extractor=False):
         #if self.model is None:
@@ -43,6 +43,8 @@ class Controller:
                 self.sheduler = self.sheduler_fn(self.optimizer)
         
         start_epoch = self.epoch
+        best_test_val = 0
+        count_without_new_best_test_val = 0
         for epoch in range(start_epoch, start_epoch+n_epochs):
             self.epoch += 1
             print(f"Epoch {epoch + 1}/{start_epoch+n_epochs}")
@@ -58,9 +60,26 @@ class Controller:
             
             if dataset.test_dataloader is not None:
                 test_info = self.test_epoch(dataset.test_dataloader)
-                print(test_info)
-                self.history['test_quality'].append(test_info)            
-            
+                self.history['test_quality'].append(test_info)
+
+                test_val = 0
+                for test in test_info:
+                    print(test)
+                    test_val+=test["metric"]
+                test_val/=len(test_info)
+                if test_val>best_test_val:
+                    best_test_val=test_val
+                    count_without_new_best_test_val=0
+                    print('new best!')
+                else:
+                    count_without_new_best_test_val+=1
+                    print('count_without_new_best_test_val:', count_without_new_best_test_val)
+
+                if self.stop_test_cout:
+                    if count_without_new_best_test_val>=self.stop_test_cout:
+                        print("Early stopping!")
+                        return self.model.eval()
+                
             if self.sheduler is not None:
                 self.sheduler.step()
             
@@ -130,9 +149,9 @@ class Controller:
             metric = self.metric_fn(GT.data, head_seg)
             metrics.append({"sample" : sample_name,
                             #"seg_sum/GT_sum" : head_seg.sum()/GT.data.sum(),
-                            "metric1" : metric})
+                            "metric" : metric})
     
-        return {'metrics': metrics}
+        return metrics
     
     
     def fast_predict(self, patch_loader, grid_aggregator, thresh=0.5):

@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 from itertools import combinations_with_replacement
 
+from transformers_models.modules import UpSampleModule, DownSampleModule, ConvModule
+
+
 class GaussianBlur3D(nn.Module):
     def __init__(self, in_channels, sigma, device, kernel_size=7):
         super(GaussianBlur3D, self).__init__()
@@ -15,14 +18,15 @@ class GaussianBlur3D(nn.Module):
         self.set_weights(sigma)
     
     def set_weights(self, sigma):
-        if not isinstance(sigma, torch.FloatTensor):
+        if not (isinstance(sigma, torch.FloatTensor) or
+                isinstance(sigma, torch.cuda.FloatTensor)):
             sigma = torch.tensor(sigma, dtype=torch.float32)
         if sigma.shape in (torch.Size([]), torch.Size([1])):
             sigma = sigma.expand(3)
         assert sigma.shape == torch.Size([3])
-        
+        sigma = sigma.to(self.device)
         kernel1d = torch.arange(self.kernel_size).type(torch.float32) - self.kernel_size//2
-        
+        kernel1d = kernel1d.to(self.device)
         kernel1 = (kernel1d)**2 / 2 / sigma[0]**2
         kernel2 = (kernel1d)**2 / 2 / sigma[1]**2
         kernel3 = (kernel1d)**2 / 2 / sigma[2]**2
@@ -76,14 +80,15 @@ class HessBlock(nn.Module):
                  learnable_scale=True):
         super(HessBlock, self).__init__()
         self.device = device
-
+        self.learnable_scale = learnable_scale
         self.scale = start_scale
-        if not isinstance(self.scale, torch.FloatTensor):
+        if not (isinstance(self.scale, torch.FloatTensor) or
+                isinstance(self.scale, torch.cuda.FloatTensor)):
             self.scale = torch.tensor(self.scale, dtype=torch.float32)
         if self.scale.shape == torch.Size([]):
             self.scale = self.scale.unsqueeze(0)
         
-        if learnable_scale:
+        if self.learnable_scale:
             self.scale = nn.parameter.Parameter(data=self.scale).to(device)
         else:
             self.scale = self.scale.to(device)
@@ -102,10 +107,12 @@ class HessBlock(nn.Module):
                                  with_blur=with_blur)
         self.flat = nn.Flatten(start_dim=2, end_dim=4)
         
-        
     def forward(self, x):
         input_sizes = x.shape
-        x = self.hess(x, 1).permute(1,2,3,4,5,0)
+        if self.learnable_scale:
+            x = self.hess(x, self.scale).permute(1,2,3,4,5,0)
+        else:
+            x = self.hess(x).permute(1,2,3,4,5,0)
         x = self.flat(x)
         
         scale_attention = self.scale.expand(*x.shape[:3], self.scale.shape[0])
@@ -153,3 +160,39 @@ class HessFeatures(nn.Module):
         
         for HessBlock in self.HessBlocks:
             HessBlock.hess.gauss.device = device
+
+
+class HessNet(nn.Module):
+    def __init__(self,
+                 device,
+                 in_channels=1,
+                 out_channels=1,
+                 start_scale=1,
+                 n_hess_blocks=4):
+        super(HessNet, self).__init__()
+        self.device = device
+
+        self.hess = HessFeatures(in_channels=1,
+                                  n_hess_blocks=2,
+                                  start_scale=start_scale,
+                                  device=device,
+                                  hess_with_blur=True,
+                                  hess_learnable_scale=True)
+            
+        self.conv = ConvModule(in_channels=3, out_channels=1,
+                                kernel_size=5, norm=None, act=None, bias=True, padding='auto')
+
+        
+        self.act = nn.Sigmoid()
+
+        self.to(device)
+
+    def to(self, device):
+        return super().to(torch.device(device))
+    
+    def forward(self, x):
+        out = self.conv(torch.cat([x, self.hess(x)], axis=1))
+        return self.act(out)
+
+
+

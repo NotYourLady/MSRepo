@@ -1,0 +1,43 @@
+{
+    "path_to_data" : "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests",
+    "path_to_EvaluateSegmentation" : "/home/msst/repo/MSRepo/VesselSegmentation/Inference/EvaluateSegmentation",
+    "trained_models_path" : "/home/msst/Documents/medtech/data/TestModels_IXI/trained_models",
+    "segmentation_out_path" : "/home/msst/Documents/medtech/data/TestModels_IXI/segmentation_data",
+
+    "model" : "UNETR",
+
+    "learning_settings": {
+        "device" : "cuda",
+        "is2d" : false,
+        "normalization" : "Z-norm",
+        "patch_size_train" : [64, 64, 64],
+        "patch_size_test" : [64, 64, 64],
+        "overlap_test" : [16, 16, 16],
+        "batch_size" : 8
+    },
+    "metrics": ["DICE", "AVGDIST", "SNSVTY"],
+    "tests": {
+        "test1" : {
+            "train": ["/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_1",
+             "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_1",
+              "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_1"],
+            "val" : ["/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI080_0",
+             "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI083_0",
+              "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI100_0"],
+            "test": ["/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_0",
+             "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_1",
+              "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI077_0"]
+        },
+        "test2" : {
+            "train": ["/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_0",
+             "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_1",
+              "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI077_0"],
+            "val" : ["/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_0",
+             "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_1",
+              "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI077_0"],
+            "test": ["/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_0",
+             "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_1",
+              "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI077_0"]
+        }
+    }
+}

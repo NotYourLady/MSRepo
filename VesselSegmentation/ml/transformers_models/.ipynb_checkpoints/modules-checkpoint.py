@@ -18,7 +18,8 @@ class ConvModule(nn.Module):
                  norm='batch_norm',
                  act='relu',
                  layer_norm_shape=None,
-                 order=('conv', 'norm', 'act')):
+                 order=('conv', 'norm', 'act'),
+                 bias=True):
         super().__init__()
         self.order = order
 
@@ -53,7 +54,7 @@ class ConvModule(nn.Module):
             pad = padding
         self.conv = conv_fn(in_channels=in_channels, out_channels=out_channels,
                             kernel_size=kernel_size, stride=stride, dilation=dilation,
-                            padding=pad, padding_mode="reflect")
+                            padding=pad, padding_mode="reflect", bias=bias)
         
         self.actions = {
             'act' : self.act,
@@ -67,7 +68,7 @@ class ConvModule(nn.Module):
         return(x)  
 
 
-class UdSampleModule(nn.Module):
+class UpSampleModule(nn.Module):
     def __init__(self,
                  dim=3,
                  mode='upsample',
