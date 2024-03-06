@@ -20,23 +20,3 @@ class Sample:
             sample_dict.update({'brain': tio.LabelMap(get_path(p, "brain"))})
         
         return(tio.Subject(sample_dict))
-
-        
-    def make_masked(self, keys_to_mask, mask_by='brain'):
-        p = self.path_to_sample_dir
-        masked_path = p + '/masked'
-        mask = tio.LabelMap(get_path(p, mask_by)).data
-        
-        if not os.path.exists(masked_path):
-            os.mkdir(masked_path)
-        
-        for key in keys_to_mask:
-            file_path = get_path(p, key)
-            file_name = os.path.basename(file_path)
-            img_to_save = tio.ScalarImage(file_path)
-            arr_to_save = img_to_save.data * mask
-            affine = img_to_save.affine
-            path_to_save = masked_path +'/masked_' + file_name
-            save_vol_as_nii(arr_to_save, affine, path_to_save)    
-            
-        return(masked_path)

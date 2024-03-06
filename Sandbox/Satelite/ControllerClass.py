@@ -10,13 +10,11 @@ class Controller:
     def __init__(self, config: Dict):
         self.config = config
         self.device = config['device']
-        #print(self.device)
         self.verbose = config.get('verbose', False)
         
         self.epoch = 0
         self.model = config['model']
         self.model.to(self.device)
-        #self.model.to_device(self.device)
         self.history = {
             'train_loss': [],
             'val_loss': [],
@@ -33,7 +31,7 @@ class Controller:
         self.is2d = config.get('is2d', False)
         self.stop_test_cout = config.get('early_stopping', None)
         
-    def fit(self, dataset, n_epochs, brain_extractor=False):
+    def fit(self, dataset, n_epochs):
         #if self.model is None:
         #    self.model = model.to(self.device)
         if self.optimizer is None:
@@ -48,15 +46,16 @@ class Controller:
         for epoch in range(start_epoch, start_epoch+n_epochs):
             self.epoch += 1
             print(f"Epoch {epoch + 1}/{start_epoch+n_epochs}")
-            
-            train_info = self.train_epoch(dataset.train_dataloader, brain_extractor=brain_extractor)
-            print(train_info)
-            self.history['train_loss'].append(train_info['mean_loss'])
+
+            if dataset.train_dataloader is not None:
+                train_info = self.train_epoch(dataset.train_dataloader)
+                print(train_info)
+                self.history['train_loss'].append(train_info['mean_loss'])
             
             if dataset.val_dataloader is not None:
                 val_info = self.val_epoch(dataset.val_dataloader)
                 print(val_info)
-                self.history['val_loss'].append(val_info['mean_loss'])
+                self.history['val_loss'].append(val_info)
             
             if dataset.test_dataloader is not None:
                 test_info = self.test_epoch(dataset.test_dataloader)
@@ -86,25 +85,21 @@ class Controller:
         return self.model.eval()
 
     
-    def train_epoch(self, train_dataloader, brain_extractor=False):
+    def train_epoch(self, train_dataloader):
         self.model.train()
         losses = []
         if self.verbose:
             train_dataloader = tqdm(train_dataloader)
         for patches_batch in train_dataloader:
-            head_batch = patches_batch['head']['data'].float().to(self.device)  
-            if brain_extractor:
-                vessels_batch = patches_batch['brain']['data'].float().to(self.device) 
-            else:
-                vessels_batch = patches_batch['vessels']['data'].float().to(self.device) 
+            img_batch = patches_batch['img']['data'].float().to(self.device)  
+            label_batch = patches_batch['label']['data'].float().to(self.device) 
             
-            if self.is2d:
-                head_batch = head_batch[:, :, :, :, 0]
-                vessels_batch = vessels_batch[:, :, :, :, 0]
+            if self.is2d:               
+                img_batch = img_batch[:, :, :, :, 0]
+                label_batch = label_batch[:, :, :, :, 0]
             
-            outputs = self.model.forward(head_batch)   
-            #outputs = self.model.forward(head_batch)[0]   
-            loss = self.loss_fn(vessels_batch, outputs)
+            outputs = self.model.forward(img_batch)   
+            loss = self.loss_fn(label_batch, outputs)
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -119,19 +114,22 @@ class Controller:
     
     def val_epoch(self, val_dataloader):
         self.model.eval()
-        
-        losses = []
+        metrics = []
         if self.verbose:
             val_dataloader = tqdm(val_dataloader)
-        for patches_batch in val_dataloader: 
-            head_batch = patches_batch['head']['data'].float().to(self.device)  
-            vessels_batch = patches_batch['vessels']['data'].float().to(self.device) 
-            with torch.no_grad():
-                outputs = self.model.forward(head_batch)   
-                loss = self.loss_fn(vessels_batch, outputs)
-                loss_val = loss.item()
-                losses.append(loss_val)
-        return {'mean_loss': sum(losses)/len(losses)}
+        for batch in val_dataloader:
+            patch_loader = batch["patch_loader"]
+            grid_aggregator = batch["grid_aggregator"]
+            GT = batch["GT"]
+            sample_name = batch["sample_name"]
+            
+            head_seg = self.fast_predict(patch_loader, grid_aggregator)
+            metric = self.metric_fn(GT.data, head_seg)
+            metrics.append({"sample" : sample_name,
+                            #"seg_sum/GT_sum" : head_seg.sum()/GT.data.sum(),
+                            "metric" : metric})
+    
+        return metrics
     
 
     def test_epoch(self, test_dataloader):
@@ -157,7 +155,7 @@ class Controller:
     def fast_predict(self, patch_loader, grid_aggregator, thresh=0.5):
         for patches_batch in patch_loader:
             patch_locations = patches_batch[tio.LOCATION]
-            head_patches = patches_batch['head']['data'].to(self.device)
+            head_patches = patches_batch['img']['data'].to(self.device)
             if self.is2d:
                 head_patches = head_patches[:, :, :, :, 0]
             with torch.no_grad():
@@ -217,9 +215,7 @@ class Controller:
     def save(self, path: str):
         if self.model is None:
             raise RuntimeError("Need a model")
-        #print(self.config)
-        save_config = copy.copy(self.config)
-        #print(save_config)
+        save_config = copy.deepcopy(self.config)
         if save_config.get('optimizer_fn'):
             del save_config['optimizer_fn']
         if save_config.get('sheduler_fn'):

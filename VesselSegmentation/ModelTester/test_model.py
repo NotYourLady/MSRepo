@@ -14,11 +14,36 @@ from scripts.utils import get_path
 
 
 def main(settings):
-    #for test in settings['tests']:
-    #    print(settings['tests'][test])
-    learner = Learner(settings, test='test1')  
-    learner.fit_and_save()
+    logger = {}
+    for test in tqdm(settings['tests']):
+        print("#########################################")
+        print("#########################################")
+        print(f"Run {test}...")
+        print("#########################################")
+        print("#########################################")
+        
+        learner = Learner(settings, test=test)  
+        learner.fit_and_save()
+
+        runner = Runner(settings, test=test)
+        runner.run()
+        logger.update({test: 'done'})
+        
+        # try:
+        #     learner = Learner(settings, test=test)  
+        #     learner.fit_and_save()
     
+        #     runner = Runner(settings, test=test)
+        #     runner.run()
+        #     logger.update({test: 'done'})
+        # except:
+        #     logger.update({test: 'crashed'})
+        
+    fp = open(f'{settings["results_path"]}/{settings["model"]}_logs.json', 'w')
+    json.dump(logger, sort_keys=True, indent=4, fp=fp)
+    fp.close()
+            
+        
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='NN vessel segmentation')

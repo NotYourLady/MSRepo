@@ -1,4 +1,5 @@
 import os
+import re
 import numpy as np
 import torch
 import torchio as tio
@@ -7,7 +8,19 @@ from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch.nn.functional as F
 
-from scripts.utils import get_path
+
+def get_path(path, key="head"):
+    out = []
+    names = os.listdir(path)
+    for name in names:
+        m = re.search(key, name)
+        if m:
+            out.append(f"{path}/{name}")
+    
+    if len(out)==1:
+        return(out[0])
+    return(out)
+
 
 class TioDataset(Dataset):
     def __init__(self, data_dir,
@@ -46,42 +59,25 @@ class TioDataset(Dataset):
         
     def set_data(self, data_type):
         subjects_list = []
-        if self.paths:
-            for p in self.paths[data_type]:
-                subject_dict = {"sample_name" : os.path.basename(p)}
-                if get_path(p, 'head'):
-                    subject_dict.update({'head': tio.ScalarImage(get_path(p, 'head'))})
-                if get_path(p, 'vessels'):
-                    subject_dict.update({'vessels': tio.LabelMap(get_path(p, 'vessels'))})
-                if get_path(p, 'brain'):
-                    subject_dict.update({'brain': tio.LabelMap(get_path(p, 'brain'))})    
-                subject = tio.Subject(subject_dict)
-                if data_type=='train' and self.train_settings["sampler"]=="weighted":
-                    self.add_prob_map(subject)
-                subjects_list.append(subject)
+        if data_type=='train':
+            path_to_data = self.data_dir + "/train"
+        elif data_type=='val':
+            path_to_data = self.data_dir + "/val"
+        elif data_type=='test':
+            path_to_data = self.data_dir + "/test"
         else:
-            if data_type=='train':
-                path_to_data = self.data_dir + "/train"
-            elif data_type=='val':
-                path_to_data = self.data_dir + "/val"
-            elif data_type=='test':
-                path_to_data = self.data_dir + "/test"
-            else:
-                raise RuntimeError("HeadDataset::set_data ERROR")
-    
-            for dirname, dirnames, filenames in os.walk(path_to_data):
-                for subdirname in dirnames:
+            raise RuntimeError("Dataset::set_data ERROR")
+
+        for dirname, dirnames, filenames in os.walk(path_to_data):
+            for subdirname in dirnames:
+                if subdirname[0]!='.':
                     p = os.path.join(dirname, subdirname)
                     subject_dict = {"sample_name" : subdirname}
-                    if get_path(p, 'head'):
-                        subject_dict.update({'head': tio.ScalarImage(get_path(p, 'head'))})
-                    if get_path(p, 'vessels'):
-                        subject_dict.update({'vessels': tio.LabelMap(get_path(p, 'vessels'))})
-                    if get_path(p, 'brain'):
-                        subject_dict.update({'brain': tio.LabelMap(get_path(p, 'brain'))})     
+                    if get_path(p, 'img'):
+                        subject_dict.update({'img': tio.ScalarImage(get_path(p, 'img'))})
+                    if get_path(p, 'label'):
+                        subject_dict.update({'label': tio.LabelMap(get_path(p, 'label'))})
                     subject = tio.Subject(subject_dict)
-                    if data_type=='train' and self.train_settings["sampler"]=="weighted":
-                        self.add_prob_map(subject)
                     subjects_list.append(subject)
         
         return(tio.SubjectsDataset(subjects_list))
@@ -118,16 +114,11 @@ class TioDataset(Dataset):
             settings = self.test_settings
             data = self.test_data
         else:
-            raise RuntimeError("HeadDataset::set_data ERROR")    
+            raise RuntimeError("Dataset::set_data ERROR")    
         
         
-        if data_type in ('train', 'val'): 
-            if settings["sampler"] == "weighted":
-                sampler = tio.data.WeightedSampler(settings["patch_shape"],
-                                                   probability_map='prob_map')
-            else:
-                sampler = tio.data.UniformSampler(settings["patch_shape"])
-            
+        if data_type=='train': 
+            sampler = tio.data.UniformSampler(settings["patch_shape"])
             patches_queue = tio.Queue(
                 data,
                 settings["patches_queue_length"],
@@ -135,14 +126,13 @@ class TioDataset(Dataset):
                 sampler,
                 num_workers=settings["num_workers"],
             )
-
             patches_loader = DataLoader(
                 patches_queue,
                 batch_size=settings["batch_size"],
                 num_workers=0,  #must be
             )
             return(patches_loader)
-        else: ### data_type='test'
+        elif data_type in ('test', 'val'):
             test_loaders = []
             for subject in data:
                 grid_sampler = tio.GridSampler(subject,
@@ -153,41 +143,13 @@ class TioDataset(Dataset):
                 patch_loader = torch.utils.data.DataLoader(grid_sampler,
                                                            batch_size=settings["batch_size"],
                                                            num_workers=settings["num_workers"])
-                if ("vessels" in subject.keys()):
-                    GT = subject.vessels
+                if ("label" in subject.keys()):
+                    GT = subject.label
                 else:
-                    GT = subject.head
+                    raise RuntimeError("Dataset::set_data ERROR: label in subject.keys()")    
                 sample_name = subject.sample_name
                 test_loaders.append({"patch_loader" : patch_loader,
                                      "grid_aggregator" : grid_aggregator,
                                      "GT" : GT,
                                      "sample_name" : sample_name})
             return(test_loaders)
-        
-        
-        
-# import matplotlib.pyplot as plt
-# SHOW_SLICE = 32
-# def print_img(vol, axis, title= 'title', show_slice=None, cmap='hot'):
-#     global SHOW_SLICE
-#     if title is not None:
-#         axis.set_title(title)
-#     if show_slice is None:
-#         im = axis.imshow(vol[:, :, SHOW_SLICE], cmap=cmap)
-#     else: 
-#         im = axis.imshow(vol[:, :, show_slice], cmap=cmap)
-#     plt.colorbar(im)
-
-# for batch in train_loader:
-#     for i in range(batch['head']['data'].shape[0]//4):
-#         fig, ax = plt.subplots(2, 4, figsize=(5, 2))
-#         print_img(batch['head']['data'][i, 0], ax[0][0], title=None, cmap='hot')
-#         print_img(batch['head']['data'][i+1, 0], ax[0][1], title=None, cmap='hot')
-#         print_img(batch['head']['data'][i+2, 0], ax[0][2], title=None, cmap='hot')
-#         print_img(batch['head']['data'][i+3, 0], ax[0][3], title=None, cmap='hot')
-        
-#         print_img(batch['vessels']['data'][i, 0], ax[1][0], title=None, cmap='gray')
-#         print_img(batch['vessels']['data'][i+1, 0], ax[1][1], title=None, cmap='gray')
-#         print_img(batch['vessels']['data'][i+2, 0], ax[1][2], title=None, cmap='gray')
-#         print_img(batch['vessels']['data'][i+3, 0], ax[1][3], title=None, cmap='gray')
-        

@@ -23,26 +23,28 @@ class Learner:
 
 
     def init_dataset(self): 
-        BATCH_SIZE_TRAIN = self.learning_settings['batch_size']
+        BATCH_SIZE_TRAIN = self.learning_settings['train_batch_size']
         PATCH_SIZE_TRAIN = self.learning_settings['patch_size_train']
+        PATCHES_PER_VOLUME_TRAIN = self.settings['tests'][self.test]['train_patches_per_volume']
+        BATCH_SIZE_TEST = self.learning_settings['test_batch_size']
         PATCH_SIZE_TEST = self.learning_settings['patch_size_test']
         OVERLAP_TEST = self.learning_settings['overlap_test']
+        NUM_WORKERS = self.learning_settings['num_workers']
         
         train_settings  = {
             "patch_shape" : PATCH_SIZE_TRAIN,
-            "patches_per_volume" : 64,
+            "patches_per_volume" : PATCHES_PER_VOLUME_TRAIN,
             "patches_queue_length" : 1440,
-            "batch_size" : BATCH_SIZE_TRAIN,
-            "num_workers": 4,
+            "batch_size" :  BATCH_SIZE_TRAIN,
+            "num_workers": NUM_WORKERS,
             "sampler": "uniform",
         }
         test_settings = {
             "patch_shape" : PATCH_SIZE_TEST,
             "overlap_shape" : OVERLAP_TEST,
-            "batch_size" : 1,
-            "num_workers": 4,
+            "batch_size" : BATCH_SIZE_TEST,
+            "num_workers": 8,
         }
-        #print(self.settings['tests'][self.test]['train'])
         return TioDataset(self.settings["path_to_data"],
                           train_settings=train_settings,
                           test_settings=test_settings,
@@ -59,7 +61,7 @@ class Learner:
             "metric" : DICE_Metric(),
             'device' : self.device,
             "model" : model,
-            "optimizer_fn" : lambda model: Adam(model.parameters(), lr=0.005),
+            "optimizer_fn" : lambda model: Adam(model.parameters(), lr=self.learning_settings['learning_rate']),
             "sheduler_fn": None, #lambda optimizer: StepLR(optimizer, step_size=1, gamma=0.9),
             "is2d" : self.learning_settings['is2d'],
             'verbose':True,
@@ -67,6 +69,7 @@ class Learner:
         }
         return Controller(controller_config)
 
+    
     def fit_and_save(self):
         epochs = 50
         self.controller.fit(self.dataset, epochs)

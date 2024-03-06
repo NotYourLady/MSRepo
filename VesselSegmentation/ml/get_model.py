@@ -29,7 +29,7 @@ def get_model(model_name, device='cuda'):
     elif model_name == 'JustConv':
         return(JustConv(1, 1))
 
-    elif model_name == 'JustConv':
+    elif model_name == 'TwoConv':
         return(TwoConv(1, 1, 5))
 
     else:

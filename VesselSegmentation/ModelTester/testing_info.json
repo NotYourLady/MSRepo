@@ -1,0 +1,170 @@
+{
+    "test1": {
+        "test": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI100_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI077_0"
+        ],
+        "train": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI057_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI057_1"
+        ],
+        "train_patches_per_volume": 256,
+        "val": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI083_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI080_0"
+        ]
+    },
+    "test2": {
+        "test": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI052_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI077_0"
+        ],
+        "train": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI057_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI057_1"
+        ],
+        "train_patches_per_volume": 256,
+        "val": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI080_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI111_0"
+        ]
+    },
+    "test3": {
+        "test": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI077_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI083_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI080_0"
+        ],
+        "train": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI115_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI115_1"
+        ],
+        "train_patches_per_volume": 256,
+        "val": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI111_0"
+        ]
+    },
+    "test4": {
+        "test": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI111_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI052_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI057_0"
+        ],
+        "train": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI083_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI083_1",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI080_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI080_1"
+        ],
+        "train_patches_per_volume": 196,
+        "val": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI115_0"
+        ]
+    },
+    "test5": {
+        "test": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI115_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI057_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI100_0"
+        ],
+        "train": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_1",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI083_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI083_1"
+        ],
+        "train_patches_per_volume": 196,
+        "val": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI077_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI080_0"
+        ]
+    },
+    "test6": {
+        "test": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI083_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI111_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI080_0"
+        ],
+        "train": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI052_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI052_1",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_1"
+        ],
+        "train_patches_per_volume": 196,
+        "val": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI115_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI100_0"
+        ]
+    },
+    "test7": {
+        "test": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI057_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI080_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI077_0"
+        ],
+        "train": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI115_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI115_1",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI100_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI100_1",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI083_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI083_1",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI052_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI052_1"
+        ],
+        "train_patches_per_volume": 128,
+        "val": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI111_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_0"
+        ]
+    },
+    "test8": {
+        "test": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI100_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI111_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI052_0"
+        ],
+        "train": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI083_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI083_1",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI080_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI080_1",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI115_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI115_1",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI057_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI057_1"
+        ],
+        "train_patches_per_volume": 128,
+        "val": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI077_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_0"
+        ]
+    },
+    "test9": {
+        "test": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI100_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI077_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI111_0"
+        ],
+        "train": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI115_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI115_1",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI052_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI052_1",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI083_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI083_1",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI020_1"
+        ],
+        "train_patches_per_volume": 128,
+        "val": [
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI057_0",
+            "/home/msst/Documents/medtech/data/TestModels_IXI/data_for_tests/IXI080_0"
+        ]
+    }
+}
